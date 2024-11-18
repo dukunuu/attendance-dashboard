@@ -14,7 +14,6 @@ declare global {
   interface ICourse {
     id: number;
     name: string;
-    created_at: string;
     description: string;
     imageUrl: string;
     user_id: string;
@@ -29,6 +28,7 @@ declare global {
     updateCourse: (course: ICourse) => void;
     deleteCourse: (id: number) => void;
   };
+  type UserRole = "admin" | "teacher" | "school_admin";
   interface IStudent {
     id: number;
     first_name: string;
@@ -36,6 +36,16 @@ declare global {
     student_code: string;
     school_id: number;
     imageUrl: string;
+  }
+  interface User {
+    id: number;
+    email: string;
+    first_name: string;
+    last_name: string;
+    role: UserRole;
+    image_url: string;
+    phone_number: string;
+    school_id: number;
   }
 }
 

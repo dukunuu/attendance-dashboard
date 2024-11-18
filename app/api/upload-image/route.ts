@@ -1,4 +1,5 @@
 import {
+  HeadObjectCommand,
   PutObjectCommand,
   PutObjectCommandInput,
   S3Client,
@@ -38,6 +39,7 @@ export async function POST(req: Request) {
     if (!file) {
       throw new Error("No file found in request");
     }
+    console.log(file, fileName);
     const fileBuffer = await file.arrayBuffer();
     const fullFileName = await uploadToS3(fileBuffer, fileName);
     return NextResponse.json({

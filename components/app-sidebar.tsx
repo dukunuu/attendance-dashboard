@@ -100,6 +100,11 @@ export async function AppSidebar() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const { data: profile } = await supabase
+    .from("users")
+    .select()
+    .eq("id", user!.id)
+    .single<User>();
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
@@ -154,21 +159,25 @@ export async function AppSidebar() {
                   <ChevronUp className="ml-auto" />
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
-              <DropdownMenuContent
-                side="top"
-                className="w-[--radix-popper-anchor-width] min-w-[15rem]"
-              >
+              <DropdownMenuContent side="top" className="min-w-[15rem] w-max">
                 <DropdownMenuItem asChild>
                   <Link
-                    className="flex justify-evenly items-center cursor-pointer"
+                    className="flex justify-evenly gap-2 items-center cursor-pointer"
                     href="#"
                   >
-                    <User2 />
+                    {profile?.image_url ? (
+                      <img
+                        src={profile.image_url}
+                        alt="Profile"
+                        className="h-8 w-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <User2 />
+                    )}
                     <div className="flex flex-col gap-2">
                       <span>{user?.email}</span>
                       <span className="text-xs text-foreground/50">
-                        {user?.user_metadata.first_name}{" "}
-                        {user?.user_metadata.last_name}
+                        {profile?.first_name} {profile?.last_name}
                       </span>
                     </div>
                   </Link>

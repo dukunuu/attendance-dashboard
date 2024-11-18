@@ -1,9 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
-import Link from "next/link";
+import { useState, useRef, useEffect } from "react";
 import {
-  ColumnDef,
   ColumnFiltersState,
   SortingState,
   flexRender,
@@ -23,33 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  MoreHorizontal,
-  ArrowUpDown,
-  Upload,
-  Plus,
-  LoaderCircle,
-  Ellipsis,
-} from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+import { Upload, LoaderCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -59,143 +31,51 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { createClient } from "@/utils/supabase/client";
+import { fetchCourseStudents } from "@/app/actions";
+import {
+  defaultColumn,
+  previewTableColumns,
+  tableColumns,
+} from "./tableColumns";
+import AddStudentDialog from "./AddStudentDialog";
+import { useToast } from "@/hooks/use-toast";
+import { findConflictingStudentIds, uploadCsvImagesToS3 } from "./helpers";
 
-export default function StudentsDataTable({ data }: { data: IStudent[] }) {
+export default function StudentsDataTable({ profile }: { profile: User }) {
+  const [data, setData] = useState<IStudent[]>([]);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [students, setStudents] = useState<IStudent[]>(data);
-  const [csvData, setCsvData] = useState<IStudent[]>([]);
+  const [csvData, setCsvData] = useState<Omit<IStudent, "id" | "school_id">[]>(
+    [],
+  );
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const supabase = createClient();
+  const { toast } = useToast();
 
-  const columns: ColumnDef<IStudent>[] = [
-    {
-      accessorKey: "student_code",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            Student Code
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        );
-      },
-      cell: ({ row }) => {
-        return (
-          <Link href={`/students/${row.original.id}`}>
-            <Button variant={"link"}>{row.getValue("student_code")}</Button>
-          </Link>
-        );
-      },
-    },
-    {
-      accessorKey: "first_name",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            First Name
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        );
-      },
-      cell: ({ row }) => <div>{row.getValue("first_name")}</div>,
-    },
-    {
-      accessorKey: "last_name",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            Last Name
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        );
-      },
-      cell: ({ row }) => <div>{row.getValue("last_name")}</div>,
-    },
-    {
-      accessorKey: "school_id",
-      header: "School ID",
-      cell: ({ row }) => <div>{row.getValue("school_id")}</div>,
-    },
-    {
-      accessorKey: "imageUrl",
-      header: "Image Preview",
-      cell: ({ row }) => (
-        <img
-          src={row.getValue("imageUrl")}
-          alt={`Preview of ${row.getValue("first_name")}`}
-          className="w-16 h-16 object-cover rounded"
-        />
-      ),
-    },
-    {
-      id: "actions",
-      cell: ({ row }) => {
-        const student = row.original;
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem asChild>
-                <Link href={`/students/${student.id}`}>Edit</Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                    Delete
-                  </DropdownMenuItem>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      Are you absolutely sure?
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete
-                      the student&apos;s data from our servers.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => handleDelete(student.id)}>
-                      {isLoading ? (
-                        <Ellipsis className="animate-puls" />
-                      ) : (
-                        "Delete"
-                      )}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
-      },
-    },
-  ];
+  useEffect(() => {
+    fetchCourseStudents(profile.school_id).then((students) => {
+      setData(students);
+    });
+  }, []);
+
+  const handleDelete = async (id: number) => {
+    setIsLoading(true);
+    const supabase = createClient();
+    await supabase.from("students").delete().eq("id", id);
+    setIsLoading(false);
+    setData(data.filter((student) => student.id !== id));
+  };
+
+  const columns = tableColumns(isLoading, handleDelete, profile.role);
+  const previewColumns = previewTableColumns;
 
   const table = useReactTable({
-    data: students,
-    columns,
+    data,
+    columns: columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
@@ -210,20 +90,31 @@ export default function StudentsDataTable({ data }: { data: IStudent[] }) {
     },
   });
 
-  const previewTable = useReactTable({
+  const previewTable = useReactTable<(typeof csvData)[number]>({
     data: csvData,
-    columns,
+    columns: previewColumns,
+    defaultColumn: defaultColumn,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    meta: {
+      updateData: (rowIndex: number, columnId: number, value: any) => {
+        setCsvData((old) =>
+          old.map((row, index) => {
+            if (index === rowIndex) {
+              return {
+                ...old[rowIndex]!,
+                [columnId]: value,
+              };
+            }
+            return row;
+          }),
+        );
+      },
+      removeRow: (rowIndex: number) => {
+        setCsvData((old) => old.filter((_, index) => index !== rowIndex));
+      },
+    },
   });
-
-  const handleDelete = async (id: number) => {
-    setIsLoading(true);
-    const supabase = createClient();
-    await supabase.from("students").delete().eq("id", id);
-    setIsLoading(false);
-    setStudents(students.filter((student) => student.id !== id));
-  };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -233,17 +124,18 @@ export default function StudentsDataTable({ data }: { data: IStudent[] }) {
         const text = e.target?.result as string;
         const lines = text.split("\n");
         const headers = lines[0].split(",");
-        const parsedData: IStudent[] = lines.slice(1).map((line, index) => {
-          const values = line.split(",");
-          return {
-            id: students.length + index + 1,
-            first_name: values[headers.indexOf("first_name")],
-            last_name: values[headers.indexOf("last_name")],
-            student_code: values[headers.indexOf("student_code")],
-            school_id: parseInt(values[headers.indexOf("school_id")], 10),
-            imageUrl: values[headers.indexOf("imageUrl")],
-          };
-        });
+        const parsedData: Omit<IStudent, "id" | "school_id">[] = lines
+          .slice(1)
+          .map((line) => {
+            const values = line.split(",");
+            return {
+              first_name: values[headers.indexOf("first_name")],
+              last_name: values[headers.indexOf("last_name")],
+              student_code: values[headers.indexOf("student_code")],
+              imageUrl: values[headers.indexOf("imageUrl")],
+              school_id: profile.school_id,
+            };
+          });
         setCsvData(parsedData);
       };
       reader.readAsText(file);
@@ -253,8 +145,28 @@ export default function StudentsDataTable({ data }: { data: IStudent[] }) {
 
   const handleUpload = async () => {
     setIsSubmitting(true);
-    setStudents([...students, ...csvData]);
-    await supabase.from("students").insert(csvData);
+    const conflictingIds = findConflictingStudentIds(data, csvData);
+    if (conflictingIds.length) {
+      toast({
+        title: "Error",
+        description: `The following student codes already exist: ${conflictingIds.join(", ")}`,
+      });
+      setIsSubmitting(false);
+      return;
+    }
+    const imageUrls = (await uploadCsvImagesToS3(csvData, data)) || [];
+    const studentsData = csvData.map((student, index) => ({
+      ...student,
+      imageUrl: imageUrls[index].length ? imageUrls[index] : student.imageUrl,
+    }));
+    const { data: newStudents, error } = await supabase
+      .from("students")
+      .upsert(studentsData)
+      .select();
+    if (error) {
+      console.error("Error uploading students: ", error);
+    }
+    setData([...data, ...(newStudents || [])]);
     setCsvData([]);
     setIsPreviewOpen(false);
     setIsSubmitting(false);
@@ -269,98 +181,95 @@ export default function StudentsDataTable({ data }: { data: IStudent[] }) {
           onChange={(event) => setGlobalFilter(event.target.value)}
           className="max-w-sm"
         />
-        <div className="flex space-x-2">
-          <Button
-            variant="outline"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            Import CSV
-          </Button>
-          <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-            <DialogContent className="max-w-4xl">
-              <DialogHeader>
-                <DialogTitle>CSV Import Preview</DialogTitle>
-                <DialogDescription>
-                  Review the data before uploading. Click upload when
-                  you&apos;re ready.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="max-h-[60vh] overflow-auto">
-                <Table>
-                  <TableHeader>
-                    {previewTable.getHeaderGroups().map((headerGroup) => (
-                      <TableRow key={headerGroup.id}>
-                        {headerGroup.headers.map((header) => {
-                          return (
-                            <TableHead key={header.id}>
-                              {header.isPlaceholder
-                                ? null
-                                : flexRender(
-                                  header.column.columnDef.header,
-                                  header.getContext(),
-                                )}
-                            </TableHead>
-                          );
-                        })}
-                      </TableRow>
-                    ))}
-                  </TableHeader>
-                  <TableBody>
-                    {previewTable.getRowModel().rows?.length ? (
-                      previewTable.getRowModel().rows.map((row) => (
-                        <TableRow
-                          key={row.id}
-                          data-state={row.getIsSelected() && "selected"}
-                        >
-                          {row.getVisibleCells().map((cell) => (
-                            <TableCell key={cell.id}>
-                              {flexRender(
-                                cell.column.columnDef.cell,
-                                cell.getContext(),
-                              )}
-                            </TableCell>
-                          ))}
+        {profile.role !== "teacher" && (
+          <div className="flex space-x-2">
+            <Button
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              Import CSV
+            </Button>
+            <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+              <DialogContent className="max-w-4xl">
+                <DialogHeader>
+                  <DialogTitle>CSV Import Preview</DialogTitle>
+                  <DialogDescription>
+                    Review the data before uploading. Click upload when
+                    you&apos;re ready.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="max-h-[60vh] overflow-auto">
+                  <Table>
+                    <TableHeader>
+                      {previewTable.getHeaderGroups().map((headerGroup) => (
+                        <TableRow key={headerGroup.id}>
+                          {headerGroup.headers.map((header) => {
+                            return (
+                              <TableHead key={header.id}>
+                                {header.isPlaceholder
+                                  ? null
+                                  : flexRender(
+                                    header.column.columnDef.header,
+                                    header.getContext(),
+                                  )}
+                              </TableHead>
+                            );
+                          })}
                         </TableRow>
-                      ))
+                      ))}
+                    </TableHeader>
+                    <TableBody>
+                      {previewTable.getRowModel().rows?.length ? (
+                        previewTable.getRowModel().rows.map((row) => (
+                          <TableRow
+                            key={row.id}
+                            data-state={row.getIsSelected() && "selected"}
+                          >
+                            {row.getVisibleCells().map((cell) => (
+                              <TableCell key={cell.id}>
+                                {flexRender(
+                                  cell.column.columnDef.cell,
+                                  cell.getContext(),
+                                )}
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell
+                            colSpan={columns.length}
+                            className="h-24 text-center"
+                          >
+                            No results.
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+                <DialogFooter>
+                  <Button disabled={isSubmitting} onClick={handleUpload}>
+                    {isSubmitting ? (
+                      <LoaderCircle className="animate-spin" />
                     ) : (
-                      <TableRow>
-                        <TableCell
-                          colSpan={columns.length}
-                          className="h-24 text-center"
-                        >
-                          No results.
-                        </TableCell>
-                      </TableRow>
+                      "Upload"
                     )}
-                  </TableBody>
-                </Table>
-              </div>
-              <DialogFooter>
-                <Button disabled={isSubmitting} onClick={handleUpload}>
-                  {isSubmitting ? (
-                    <LoaderCircle className="animate-spin" />
-                  ) : (
-                    "Upload"
-                  )}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          <input
-            type="file"
-            accept=".csv"
-            onChange={handleFileChange}
-            style={{ display: "none" }}
-            ref={fileInputRef}
-          />
-          <Button asChild>
-            <Link href="/students/add">
-              <Plus className="mr-2 h-4 w-4" />
-              Add Student
-            </Link>
-          </Button>
-        </div>
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleFileChange}
+              style={{ display: "none" }}
+              ref={fileInputRef}
+            />
+            <AddStudentDialog />
+          </div>
+        )}
       </div>
       <div className="rounded-md border">
         <Table>
@@ -400,10 +309,10 @@ export default function StudentsDataTable({ data }: { data: IStudent[] }) {
                 </TableRow>
               ))
             ) : (
-              <TableRow>
+              <TableRow className="w-full">
                 <TableCell
                   colSpan={columns.length}
-                  className="h-24 text-center"
+                  className="h-24 text-center w-full"
                 >
                   No results.
                 </TableCell>

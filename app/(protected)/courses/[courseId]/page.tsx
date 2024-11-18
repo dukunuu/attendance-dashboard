@@ -13,8 +13,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { frequencyOptions } from "@/components/courses/helpers";
-import CustomCalendar from "@/components/courses/CustomCalendar";
 import LessonsTable from "@/components/courses/LessonsTable";
 
 async function getCourse(id: string): Promise<ICourse | null> {
@@ -73,12 +71,11 @@ function calculateDuration(startDate: string, endDate: string): string {
   }
 }
 
-export default async function CourseDetailsPage({
-  params,
-}: {
-  params: { courseId: string };
-}) {
-  const course = await getCourse(params.courseId);
+type Props = { params: Promise<{ courseId: string }> };
+
+export default async function CourseDetailsPage({ params }: Props) {
+  const { courseId } = await params;
+  const course = await getCourse(courseId);
 
   if (!course) {
     notFound();
@@ -97,7 +94,7 @@ export default async function CourseDetailsPage({
         Хичээлүүд рүү буцах
       </Link>
 
-      <div className="grid md:grid-cols-3 gap-8">
+      <div className="grid md:grid-cols-3 gap-8 mb-6">
         <div className="md:col-span-2">
           <h1 className="text-3xl font-bold mb-4">
             {course.name}{" "}
@@ -134,7 +131,7 @@ export default async function CourseDetailsPage({
           <p className="text-gray-600 mb-6 whitespace-pre-wrap">
             {course.description}
           </p>
-          <div className="bg-gray-100 dark:bg-[#1e1e1e]  p-4 rounded-lg mb-6">
+          <div className="bg-gray-100 dark:bg-[#1e1e1e]  p-4 rounded-lg mb-2">
             <h2 className="text-lg font-semibold mb-2">Хичээлийн мэдээлэл</h2>
             <ul className="space-y-2">
               <li className="flex items-center">
@@ -151,7 +148,7 @@ export default async function CourseDetailsPage({
               </li>
               <li className="flex items-center">
                 <span className="font-medium mr-2">
-                  <Link href={`/course/${course.id}/students`}>
+                  <Link href={`/courses/${course.id}/students`}>
                     <Button className="p-0 font-medium mr-2" variant={"link"}>
                       Нийт сурагчдын тоо:
                     </Button>
@@ -161,6 +158,9 @@ export default async function CourseDetailsPage({
               </li>
             </ul>
           </div>
+          <Link href={`/students/add?course=${courseId}`}>
+            <Button variant="default">Сурагч нэмэх</Button>
+          </Link>
         </div>
         <div className="flex flex-col w-ful>l gap-5">
           <div className="relative aspect-video rounded-lg overflow-hidden">
@@ -171,11 +171,9 @@ export default async function CourseDetailsPage({
               className="object-cover"
             />
           </div>
-          <div className="w-full flex justify-center">
-            <CustomCalendar lessons={lessons} />
-          </div>
         </div>
       </div>
+      <hr />
       <LessonsTable lessons={lessons} />
     </div>
   );

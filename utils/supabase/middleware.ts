@@ -37,18 +37,47 @@ export const updateSession = async (request: NextRequest) => {
 
     // This will refresh session if expired - required for Server Components
     // https://supabase.com/docs/guides/auth/server-side/nextjs
-    const user = await supabase.auth.getUser();
+    if (request.nextUrl.pathname.startsWith("/api/upload")) {
+      return NextResponse.next();
+    }
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
     const isAuthPage =
       request.nextUrl.pathname === "/sign-in" ||
       request.nextUrl.pathname === "/sign-up" ||
       request.nextUrl.pathname === "/forgot-password";
 
     // protected routes
-    if (!isAuthPage && user.error) {
+    if (!isAuthPage && error && !user) {
       return NextResponse.redirect(new URL("/sign-in", request.url));
     }
+    const { data: profile } = await supabase
+      .from("users")
+      .select()
+      .eq("id", user!.id)
+      .single<User>();
+    const checkProfileCompletion =
+      profile?.first_name &&
+      profile?.last_name &&
+      profile?.image_url &&
+      profile.phone_number;
 
-    if (isAuthPage && !user.error) {
+    if (isAuthPage && !checkProfileCompletion) {
+      return NextResponse.redirect(new URL("/auth/profile", request.url));
+    }
+    if (
+      !isAuthPage &&
+      !checkProfileCompletion &&
+      request.nextUrl.pathname !== "/auth/profile"
+    ) {
+      return NextResponse.redirect(new URL("/auth/profile", request.url));
+    }
+    if (
+      (isAuthPage || request.nextUrl.pathname === "/auth/profile") &&
+      checkProfileCompletion
+    ) {
       return NextResponse.redirect(new URL("/", request.url));
     }
 

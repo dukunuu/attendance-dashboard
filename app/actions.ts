@@ -131,3 +131,60 @@ export const signOutAction = async () => {
   await supabase.auth.signOut();
   return redirect("/sign-in");
 };
+
+export const fetchCourseStudents = async (school_id: number, id?: string) => {
+  "use server";
+
+  const supabase = await createClient();
+  if (!id) {
+    const { data: students, error } = await supabase
+      .from("students")
+      .select("*")
+      .eq("school_id", school_id)
+      .returns<IStudent[]>();
+    if (error) {
+      console.error(error);
+      return [];
+    }
+    return students || [];
+  }
+
+  if (isNaN(Number.parseInt(id))) {
+    console.error("Invalid course id");
+    return [];
+  }
+
+  const { data, error } =
+    (await supabase
+      .from("course_students")
+      .select(
+        `
+            student_id,
+            students (
+              *
+            )
+        `,
+      )
+      .eq("course_id", Number.parseInt(id))
+      .returns<{ students: IStudent[] }[]>()) || [];
+  if (error) {
+    console.error(error);
+    return [];
+  }
+  return data.map((item) => item.students).flat();
+};
+
+export const fetchCourses = async () => {
+  "use server";
+  const supabase = await createClient();
+  const { data: courses, error } = await supabase
+    .from("courses")
+    .select("id, name")
+    .returns<ICourse[]>();
+
+  if (error) {
+    console.error(error);
+    return [];
+  }
+  return courses;
+};
