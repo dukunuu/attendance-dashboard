@@ -1,12 +1,21 @@
 "use client";
 
-import ScheduleCourse from "@/components/courses/ScheduleCourse";
 import { SubmitButton } from "@/components/submit-button";
 import { Input } from "@/components/ui/input";
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { User } from "@supabase/supabase-js";
 import DragAndDropInput from "@/components/drag-and-drop-input";
+import {
+  Calendar,
+  CalendarCurrentDate,
+  CalendarEvent,
+  CalendarNextTrigger,
+  CalendarPrevTrigger,
+  CalendarWeekView,
+} from "@/components/courses/FullCalendar";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { mn } from "date-fns/locale";
 
 export default function AddCoursePage() {
   const [user, setUser] = useState<User>();
@@ -78,7 +87,7 @@ export default function AddCoursePage() {
         course_id: data[0].id,
       }));
       await supabase.from("lessons").insert(courseLessons);
-      window.location.href = `/courses`;
+      window.location.href = `/courses/${data[0].id}`;
     }
   };
 
@@ -89,6 +98,25 @@ export default function AddCoursePage() {
     if (user) {
       setUser(user);
     }
+  };
+
+  const handleEventChange = (events: CalendarEvent[]) => {
+    const eventsWithUniqueTitles = events.filter(
+      (event, index, self) =>
+        self.findIndex((e) => e.title === event.title) === index,
+    );
+
+    const lessons = eventsWithUniqueTitles.map((event) => {
+      const lesson: LessonType = {
+        title: event.title,
+        course_id: 1,
+        dates: events
+          .filter((e) => e.title === event.title)
+          .map((e) => ({ start: e.start, end: e.end, color: e.color })),
+      };
+      return lesson;
+    });
+    setLessons(lessons);
   };
 
   useEffect(() => {
@@ -105,6 +133,7 @@ export default function AddCoursePage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Хичээлийн нэр"
+              required
               maxLength={50}
               className="w-full"
             />
@@ -114,6 +143,7 @@ export default function AddCoursePage() {
                 onChange={onTextAreaChange}
                 placeholder="Тайлбар"
                 cols={30}
+                required
                 maxLength={2000}
                 className="flex min-h-[130px] resize-none rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 w-full"
               />
@@ -130,11 +160,30 @@ export default function AddCoursePage() {
           files={files}
           setFiles={setFiles}
         />
-        <ScheduleCourse
-          lessons={lessons}
-          setLessonsAction={setLessons}
-          isEdit
-        />
+        <Calendar
+          view="week"
+          locale={mn}
+          isEditable
+          setEvents={handleEventChange}
+        >
+          <div className="h-dvh p-14 flex flex-col">
+            <div className="flex px-6 justify-evenly items-center gap-2 mb-6">
+              <CalendarPrevTrigger>
+                <ChevronLeft size={20} />
+                <span className="sr-only">Previous</span>
+              </CalendarPrevTrigger>
+              <CalendarCurrentDate />
+              <CalendarNextTrigger>
+                <ChevronRight size={20} />
+                <span className="sr-only">Next</span>
+              </CalendarNextTrigger>
+            </div>
+
+            <div className="flex-1 px-6 overflow-hidden">
+              <CalendarWeekView />
+            </div>
+          </div>
+        </Calendar>
         <SubmitButton disabled={!validateForm()} type="submit">
           Нэмэх
         </SubmitButton>

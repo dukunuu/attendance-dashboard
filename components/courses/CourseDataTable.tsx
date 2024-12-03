@@ -30,7 +30,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
@@ -96,7 +95,7 @@ export default function CourseDataTable({ initialData }: CourseDataTableProps) {
             variant="ghost"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           >
-            Name
+            Хичээлийн нэр
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
         );
@@ -109,7 +108,7 @@ export default function CourseDataTable({ initialData }: CourseDataTableProps) {
     },
     {
       accessorKey: "description",
-      header: "Description",
+      header: "Тайлбар",
       cell: ({ row }) => (
         <span>{truncateWithDots(row.getValue("description"), 60)}</span>
       ),
@@ -122,7 +121,7 @@ export default function CourseDataTable({ initialData }: CourseDataTableProps) {
             variant="ghost"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           >
-            Created At
+            Үүсгэсэн огноо
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
         );
@@ -139,7 +138,7 @@ export default function CourseDataTable({ initialData }: CourseDataTableProps) {
             variant="ghost"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           >
-            Start Date
+            Эхлэх огноо
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
         );
@@ -156,7 +155,7 @@ export default function CourseDataTable({ initialData }: CourseDataTableProps) {
             variant="ghost"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           >
-            End Date
+            Дуусах огноо
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
         );
@@ -167,7 +166,7 @@ export default function CourseDataTable({ initialData }: CourseDataTableProps) {
     },
     {
       accessorKey: "imageUrl",
-      header: "Image Preview",
+      header: "Нүүр зураг",
       cell: ({ row }) => (
         <img
           src={row.getValue("imageUrl")}
@@ -189,34 +188,31 @@ export default function CourseDataTable({ initialData }: CourseDataTableProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
               <DropdownMenuItem asChild>
-                <Link href={`/courses/${course.id}/edit`}>Edit</Link>
+                <Link href={`/courses/${course.id}/edit`}>Засах</Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                    Delete
+                    Устгах
                   </DropdownMenuItem>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      Are you absolutely sure?
-                    </AlertDialogTitle>
+                    <AlertDialogTitle>Та итгэлтэй байна уу?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete
-                      the student&apos;s data from our servers.
+                      Та энэ хичээлийг устгахдаа итгэлтэй байна уу? Энэ үйлдлийг
+                      буцаах боломжгүй.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel>Цуцлах</AlertDialogCancel>
                     <AlertDialogAction onClick={() => deleteCourse(course.id)}>
                       {isLoading ? (
                         <Ellipsis className="animate-puls" />
                       ) : (
-                        "Delete"
+                        "Устгах"
                       )}
                     </AlertDialogAction>
                   </AlertDialogFooter>
@@ -257,7 +253,7 @@ export default function CourseDataTable({ initialData }: CourseDataTableProps) {
         />
         <Link href="/courses/add">
           <Button className="flex gap-2">
-            <span>Add Course</span>
+            <span>Хичээл үүсгэх</span>
             <PlusIcon />
           </Button>
         </Link>
@@ -305,7 +301,7 @@ export default function CourseDataTable({ initialData }: CourseDataTableProps) {
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  No results.
+                  Хичээл олдсонгүй
                 </TableCell>
               </TableRow>
             )}
@@ -320,7 +316,7 @@ export default function CourseDataTable({ initialData }: CourseDataTableProps) {
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
           >
-            Previous
+            Өмнөх
           </Button>
           <Button
             variant="outline"
@@ -328,7 +324,7 @@ export default function CourseDataTable({ initialData }: CourseDataTableProps) {
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
           >
-            Next
+            Дараах
           </Button>
         </div>
       </div>

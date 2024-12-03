@@ -188,3 +188,53 @@ export const fetchCourses = async () => {
   }
   return courses;
 };
+
+export const addStudentToCourse = async (
+  courseId: number,
+  students: IStudent[],
+) => {
+  "use server";
+  const supabase = await createClient();
+  const insertData = students.map((student) => ({
+    course_id: courseId,
+    student_id: student.id,
+  }));
+  const { error } = await supabase.from("course_students").insert(insertData);
+  if (error) {
+    console.error(error);
+  }
+};
+
+export const addStudentsToLesson = async (
+  lessonId: number,
+  students: IStudent[],
+) => {
+  "use server";
+  const supabase = await createClient();
+  const insertData = students.map((student) => ({
+    lesson_id: lessonId,
+    student_id: student.id,
+  }));
+  const { error } = await supabase.rpc("add_students_to_course_lessons", {
+    p_student_lesson_pairs: insertData,
+  });
+  if (error) {
+    console.error(error);
+  }
+};
+
+export const updateAttendance = async (
+  p_lesson_id: number,
+  p_student_code: string,
+  p_first_name: string,
+) => {
+  "use server";
+  const supabase = await createClient();
+  console.log(p_student_code, p_first_name, p_lesson_id);
+  const { data, error } = await supabase.rpc("take_attendance", {
+    p_student_code,
+    p_first_name,
+    p_lesson_id,
+  });
+  return { data, error };
+};

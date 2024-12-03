@@ -47,22 +47,21 @@ export const updateSession = async (request: NextRequest) => {
     const isAuthPage =
       request.nextUrl.pathname === "/sign-in" ||
       request.nextUrl.pathname === "/sign-up" ||
-      request.nextUrl.pathname === "/forgot-password";
+      request.nextUrl.pathname === "/forgot-password" ||
+      request.nextUrl.pathname.includes("/attendances");
 
     // protected routes
     if (!isAuthPage && error && !user) {
       return NextResponse.redirect(new URL("/sign-in", request.url));
     }
+
     const { data: profile } = await supabase
       .from("users")
       .select()
       .eq("id", user!.id)
       .single<User>();
     const checkProfileCompletion =
-      profile?.first_name &&
-      profile?.last_name &&
-      profile?.image_url &&
-      profile.phone_number;
+      profile?.first_name && profile?.last_name && profile?.image_url;
 
     if (isAuthPage && !checkProfileCompletion) {
       return NextResponse.redirect(new URL("/auth/profile", request.url));

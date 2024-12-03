@@ -39,7 +39,11 @@ import {
 } from "./tableColumns";
 import AddStudentDialog from "./AddStudentDialog";
 import { useToast } from "@/hooks/use-toast";
-import { findConflictingStudentIds, uploadCsvImagesToS3 } from "./helpers";
+import {
+  findConflictingStudentIds,
+  handleFileChange,
+  uploadCsvImagesToS3,
+} from "./helpers";
 
 export default function StudentsDataTable({ profile }: { profile: User }) {
   const [data, setData] = useState<IStudent[]>([]);
@@ -116,31 +120,19 @@ export default function StudentsDataTable({ profile }: { profile: User }) {
     },
   });
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target?.result as string;
-        const lines = text.split("\n");
-        const headers = lines[0].split(",");
-        const parsedData: Omit<IStudent, "id" | "school_id">[] = lines
-          .slice(1)
-          .map((line) => {
-            const values = line.split(",");
-            return {
-              first_name: values[headers.indexOf("first_name")],
-              last_name: values[headers.indexOf("last_name")],
-              student_code: values[headers.indexOf("student_code")],
-              imageUrl: values[headers.indexOf("imageUrl")],
-              school_id: profile.school_id,
-            };
-          });
-        setCsvData(parsedData);
-      };
-      reader.readAsText(file);
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const csvStudents = await handleFileChange(event);
+    if (csvStudents) {
       setIsPreviewOpen(true);
+      setCsvData(csvStudents);
+      return;
     }
+    toast({
+      title: "Error",
+      description: "Invalid CSV file.",
+    });
   };
 
   const handleUpload = async () => {
@@ -154,11 +146,17 @@ export default function StudentsDataTable({ profile }: { profile: User }) {
       setIsSubmitting(false);
       return;
     }
-    const imageUrls = (await uploadCsvImagesToS3(csvData, data)) || [];
-    const studentsData = csvData.map((student, index) => ({
-      ...student,
-      imageUrl: imageUrls[index].length ? imageUrls[index] : student.imageUrl,
-    }));
+    const imageUrls = await uploadCsvImagesToS3(csvData, data);
+    const studentsData: Omit<IStudent, "id">[] = csvData.map(
+      (student, index) => ({
+        ...student,
+        school_id: profile.school_id,
+        first_name: student.first_name.toUpperCase().trim(),
+        last_name: student.last_name.toUpperCase().trim(),
+        student_code: student.student_code.toUpperCase().trim(),
+        imageUrl: imageUrls[index] ? imageUrls[index] : student.imageUrl,
+      }),
+    );
     const { data: newStudents, error } = await supabase
       .from("students")
       .upsert(studentsData)
@@ -210,9 +208,9 @@ export default function StudentsDataTable({ profile }: { profile: User }) {
                                 {header.isPlaceholder
                                   ? null
                                   : flexRender(
-                                    header.column.columnDef.header,
-                                    header.getContext(),
-                                  )}
+                                      header.column.columnDef.header,
+                                      header.getContext(),
+                                    )}
                               </TableHead>
                             );
                           })}
@@ -263,7 +261,7 @@ export default function StudentsDataTable({ profile }: { profile: User }) {
             <input
               type="file"
               accept=".csv"
-              onChange={handleFileChange}
+              onChange={handleFileUpload}
               style={{ display: "none" }}
               ref={fileInputRef}
             />
@@ -282,9 +280,9 @@ export default function StudentsDataTable({ profile }: { profile: User }) {
                       {header.isPlaceholder
                         ? null
                         : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
+                            header.column.columnDef.header,
+                            header.getContext(),
+                          )}
                     </TableHead>
                   );
                 })}

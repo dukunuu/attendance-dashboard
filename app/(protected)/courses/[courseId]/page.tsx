@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import { format, parseISO, differenceInDays } from "date-fns";
-import { ArrowLeft, Calendar, Clock, Copy } from "lucide-react";
+import { ArrowLeft, CalendarIcon, Clock, Copy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
@@ -13,7 +13,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import LessonsTable from "@/components/courses/LessonsTable";
+import LessonsCalendar from "@/components/courses/LessonsCalendar";
 
 async function getCourse(id: string): Promise<ICourse | null> {
   const supabase = await createClient();
@@ -23,25 +23,28 @@ async function getCourse(id: string): Promise<ICourse | null> {
     .eq("id", id)
     .single<ICourse>();
 
+  if (error) {
+    console.error(error);
+    return null;
+  }
+
   return course;
 }
 
-async function getLessons(courseId: number): Promise<Lesson[]> {
+async function getLessons(courseId: number): Promise<ILesson[]> {
   const supabase = await createClient();
   const { data: lessons, error } = await supabase
     .from("lessons")
     .select()
     .eq("course_id", courseId)
-    .order("start_date", { ascending: true })
-    .returns<Lesson[]>();
+    .returns<ILesson[]>();
 
-  return (
-    (lessons?.map((el) => ({
-      ...el,
-      start_date: new Date(el.start_date as any),
-      end_date: new Date(el.end_date as any),
-    })) as Lesson[]) || []
-  );
+  if (error) {
+    console.error(error);
+    return [];
+  }
+
+  return lessons;
 }
 function calculateDateLeft(date: Date): string {
   const now = new Date();
@@ -116,12 +119,12 @@ export default async function CourseDetailsPage({ params }: Props) {
                   </span>
                 </TooltipTrigger>
                 <TooltipContent>
-                  Дуусахад {calculateDateLeft(parseISO(course.end_date))}
+                  {calculateDateLeft(parseISO(course.end_date))}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
             <span className="text-sm text-gray-500 flex items-center">
-              <Calendar className="mr-1 h-4 w-4" />
+              <CalendarIcon className="mr-1 h-4 w-4" />
               {format(parseISO(course.created_at!), "yyyy оны MMMын d ", {
                 locale: mn,
               })}
@@ -158,9 +161,6 @@ export default async function CourseDetailsPage({ params }: Props) {
               </li>
             </ul>
           </div>
-          <Link href={`/students/add?course=${courseId}`}>
-            <Button variant="default">Сурагч нэмэх</Button>
-          </Link>
         </div>
         <div className="flex flex-col w-ful>l gap-5">
           <div className="relative aspect-video rounded-lg overflow-hidden">
@@ -174,7 +174,7 @@ export default async function CourseDetailsPage({ params }: Props) {
         </div>
       </div>
       <hr />
-      <LessonsTable lessons={lessons} />
+      <LessonsCalendar lessons={lessons} />
     </div>
   );
 }

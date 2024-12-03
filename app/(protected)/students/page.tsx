@@ -2,12 +2,6 @@ import StudentsDataTable from "@/components/students/StudentsDataTable";
 import { createClient } from "@/utils/supabase/server";
 import { Suspense } from "react";
 
-type Props = {
-  searchParams: Promise<{
-    school: string;
-  }>;
-};
-
 export default async function StudentsPage() {
   const supabase = await createClient();
   const {

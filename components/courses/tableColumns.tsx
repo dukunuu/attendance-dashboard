@@ -1,6 +1,6 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Button } from "../ui/button";
-import { ArrowUpDown, Ellipsis, MoreHorizontal, Trash2 } from "lucide-react";
+import { ArrowUpDown, Ellipsis, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -21,13 +21,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "../ui/alert-dialog";
-import React, { useState } from "react";
-import { Input } from "../ui/input";
 
 export const tableColumns = (
   isLoading: boolean,
-  handleDelete: Function,
-  role: "teacher" | "admin" | "school_admin",
+  handleDelete: (id: number) => void,
 ): ColumnDef<IStudent>[] => {
   const columns: ColumnDef<IStudent>[] = [
     {
@@ -38,7 +35,7 @@ export const tableColumns = (
             variant="ghost"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           >
-            Student Code
+            Оюутны код
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
         );
@@ -52,21 +49,6 @@ export const tableColumns = (
       },
     },
     {
-      accessorKey: "first_name",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            First Name
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        );
-      },
-      cell: ({ row }) => <div>{row.getValue("first_name")}</div>,
-    },
-    {
       accessorKey: "last_name",
       header: ({ column }) => {
         return (
@@ -74,7 +56,7 @@ export const tableColumns = (
             variant="ghost"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           >
-            Last Name
+            Овог
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
         );
@@ -82,8 +64,23 @@ export const tableColumns = (
       cell: ({ row }) => <div>{row.getValue("last_name")}</div>,
     },
     {
+      accessorKey: "first_name",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Нэр
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+      cell: ({ row }) => <div>{row.getValue("first_name")}</div>,
+    },
+    {
       accessorKey: "imageUrl",
-      header: "Image Preview",
+      header: "Зураг",
       cell: ({ row }) => (
         <img
           src={row.getValue("imageUrl")}
@@ -92,9 +89,7 @@ export const tableColumns = (
         />
       ),
     },
-  ];
-  if (role !== "teacher") {
-    columns.push({
+    {
       id: "actions",
       cell: ({ row }) => {
         const student = row.original;
@@ -144,113 +139,8 @@ export const tableColumns = (
           </DropdownMenu>
         );
       },
-    });
-  }
-  return columns;
-};
-
-export const defaultColumn: Partial<
-  ColumnDef<Omit<IStudent, "id" | "school_id">>
-> = {
-  cell: ({ getValue, row: { index }, column: { id }, table }) => {
-    const initialValue = getValue();
-    const [value, setValue] = useState(initialValue);
-    const [isEditing, setIsEditing] = useState(false);
-
-    const onBlur = () => {
-      (table.options.meta as any)?.updateData(index, id, value);
-      setIsEditing(false);
-    };
-
-    React.useEffect(() => {
-      setValue(initialValue);
-    }, [initialValue]);
-
-    if (isEditing) {
-      return (
-        <Input
-          value={value as string}
-          onChange={(e) => setValue(e.target.value)}
-          onBlur={onBlur}
-          autoFocus
-        />
-      );
-    }
-
-    return (
-      <div onDoubleClick={() => setIsEditing(true)}>{value as string}</div>
-    );
-  },
-};
-
-export const previewTableColumns: ColumnDef<
-  Omit<IStudent, "id" | "school_id">
->[] = [
-    {
-      accessorKey: "student_code",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            Student Code
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        );
-      },
-    },
-    {
-      accessorKey: "first_name",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            First Name
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        );
-      },
-    },
-    {
-      accessorKey: "last_name",
-      header: ({ column }) => {
-        return (
-          <Button
-            variant="ghost"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            Last Name
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-          </Button>
-        );
-      },
-    },
-    {
-      accessorKey: "imageUrl",
-      header: "Image Preview",
-      cell: ({ row }) => (
-        <img
-          src={row.getValue("imageUrl")}
-          alt={`Preview of ${row.getValue("first_name")}`}
-          className="w-16 h-16 object-cover rounded"
-        />
-      ),
-    },
-    {
-      id: "actions",
-      cell: ({ row, table }) => {
-        const handleRemove = (e: React.MouseEvent<HTMLButtonElement>) => {
-          e.preventDefault();
-          (table.options.meta as any)?.removeRow(row.index);
-        };
-        return (
-          <Button variant="ghost" className="h-8 w-8 p-0" onClick={handleRemove}>
-            <Trash2 />
-          </Button>
-        );
-      },
     },
   ];
+
+  return columns;
+};

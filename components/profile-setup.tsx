@@ -170,8 +170,12 @@ const useProfileSetup = (userId: string) => {
   useEffect(() => {
     const fetchSchools = async () => {
       const { data, error } = await supabase.from("schools").select("id, name");
-      if (data) setSchools(data);
-      if (error) console.error("Error fetching schools:", error);
+      if (error) {
+        console.error("Error fetching schools:", error);
+        setSchools([]);
+        return;
+      }
+      setSchools(data);
     };
     fetchSchools();
   }, []);

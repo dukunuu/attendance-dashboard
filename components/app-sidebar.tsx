@@ -75,22 +75,33 @@ function NavCoursesSkeleton() {
 async function NavCourses() {
   const getCourses = async () => {
     const supabase = await createClient();
-    const { data } = await supabase.from("courses").select("id, name");
+    const { data, error } = await supabase.from("courses").select("id, name");
+    if (error) {
+      return [];
+    }
     return data;
   };
   const courses = (await getCourses()) as Array<{ id: number; name: string }>;
 
   return (
     <SidebarMenuSub>
-      {courses.map((course) => (
-        <SidebarMenuSubItem key={course.id}>
+      {courses.length !== 0 ? (
+        courses.map((course) => (
+          <SidebarMenuSubItem key={course.id}>
+            <SidebarMenuSubButton asChild>
+              <Link href={`/courses/${course.id}`}>
+                {truncateWithDots(course.name, 20)}
+              </Link>
+            </SidebarMenuSubButton>
+          </SidebarMenuSubItem>
+        ))
+      ) : (
+        <SidebarMenuSubItem>
           <SidebarMenuSubButton asChild>
-            <Link href={`/courses/${course.id}`}>
-              {truncateWithDots(course.name, 20)}
-            </Link>
+            <Link href="/courses/add">Хичээл нэмэх</Link>
           </SidebarMenuSubButton>
         </SidebarMenuSubItem>
-      ))}
+      )}
     </SidebarMenuSub>
   );
 }

@@ -11,21 +11,21 @@ export default async function Login(props: { searchParams: Promise<Message> }) {
     <form className="flex-1 flex flex-col min-w-64">
       <h1 className="text-2xl font-medium">Sign in</h1>
       <p className="text-sm text-foreground">
-        Don't have an account?{" "}
+        Шинэ хэрэглэгч бол
         <Link className="text-foreground font-medium underline" href="/sign-up">
-          Sign up
+          Бүртгүүлэх
         </Link>
       </p>
       <div className="flex flex-col gap-2 [&>input]:mb-3 mt-8">
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">Имэйл</Label>
         <Input name="email" placeholder="you@example.com" required />
         <div className="flex justify-between items-center">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password">Нууц үг</Label>
           <Link
             className="text-xs text-foreground underline"
             href="/forgot-password"
           >
-            Forgot Password?
+            Нууц үгээ мартсан уу?
           </Link>
         </div>
         <Input
@@ -35,7 +35,7 @@ export default async function Login(props: { searchParams: Promise<Message> }) {
           required
         />
         <SubmitButton pendingText="Signing In..." formAction={signInAction}>
-          Sign in
+          Нэвтрэх
         </SubmitButton>
         <FormMessage message={searchParams} />
       </div>

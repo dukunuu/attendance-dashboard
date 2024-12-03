@@ -1,15 +1,12 @@
+import { CalendarEvent } from "@/components/courses/FullCalendar";
+
 declare global {
-  interface Lesson {
+  interface ILesson {
     id: number;
-    type_id: number;
+    title: string;
     course_id: number;
-    start_date: Date;
-    duration: number;
-    is_repeating: boolean;
-    frequency?: string;
-    interval?: number;
-    end_date?: Date;
-    is_hidden: boolean;
+    dates?: Omit<CalendarEvent, "id" | "title">[];
+    photo_request_count?: number;
   }
   interface ICourse {
     id: number;
@@ -21,8 +18,9 @@ declare global {
     end_date: string;
     is_hidden: boolean;
     student_count?: number;
+    created_at?: string;
   }
-  type LessonType = Omit<Lesson, "id">;
+  type LessonType = Omit<ILesson, "id">;
   type CoursesActions = {
     createCourse: (course: ICourse) => void;
     updateCourse: (course: ICourse) => void;
@@ -36,6 +34,7 @@ declare global {
     student_code: string;
     school_id: number;
     imageUrl: string;
+    attendance_data?: { date: string; present: boolean }[];
   }
   interface User {
     id: number;
