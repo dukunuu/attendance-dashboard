@@ -230,7 +230,6 @@ export const updateAttendance = async (
 ) => {
   "use server";
   const supabase = await createClient();
-  console.log(p_student_code, p_first_name, p_lesson_id);
   const { data, error } = await supabase.rpc("take_attendance", {
     p_student_code,
     p_first_name,

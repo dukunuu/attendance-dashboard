@@ -2,11 +2,11 @@
 
 import { createClient } from "@/utils/supabase/client";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { addMinutes, isWithinInterval } from "date-fns";
+import { addMinutes, format, isWithinInterval } from "date-fns";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { debounce } from "lodash";
 import { Button } from "../ui/button";
-import { Image, Loader2, QrCode } from "lucide-react";
+import { DownloadCloud, Image, Loader2, QrCode } from "lucide-react";
 import AddStudentDialog from "../add-student-dialog";
 import { addStudentsToLesson } from "@/app/actions";
 import { AttendanceDialog } from "./AttendanceDialog";
@@ -121,8 +121,8 @@ export default function AttendanceSpreadsheet({ lesson }: { lesson: ILesson }) {
     const studentData = newStudents.map((student) => ({
       ...student,
       attendance_data: lesson.dates!.map((date) => ({
-        date: date.start.toISOString(),
-        close: date.end.toISOString(),
+        date: date.start as string,
+        close: date.end as string,
         present: false,
       })),
     }));
@@ -199,6 +199,24 @@ export default function AttendanceSpreadsheet({ lesson }: { lesson: ILesson }) {
     });
   };
 
+  const exportToCSV = async () => {
+    const csv = students.map((student) => {
+      const attendanceData = student.attendance_data!.map((ad) => {
+        return ad.present ? "1" : "0";
+      });
+      return `${student.student_code},${student.last_name.at(0)}.${student.first_name},${attendanceData.join(",")}`;
+    });
+    const csvHeader = `Код,Нэр,${lesson.dates!.map((date) => format(date.start, "dd/mm/yyyy")).join(",")}`;
+    const csvString = [csvHeader, ...csv].join("\n");
+    const blob = new Blob([csvString], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "attendance.csv";
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   useEffect(() => {
     fetchStudents();
   }, [fetchStudents]);
@@ -228,11 +246,16 @@ export default function AttendanceSpreadsheet({ lesson }: { lesson: ILesson }) {
             <Image />
           </Button>
         </div>
-        <AddStudentDialog
-          lessonId={lesson.id}
-          addTo="lesson"
-          addStudentsAction={addStudentToLesson}
-        />
+        <div className="flex gap-2">
+          <Button className="gap-1" variant={"outline"} onClick={exportToCSV}>
+            <DownloadCloud /> CSV татах
+          </Button>
+          <AddStudentDialog
+            lessonId={lesson.id}
+            addTo="lesson"
+            addStudentsAction={addStudentToLesson}
+          />
+        </div>
         <AttendanceDialog
           open={open}
           onOpenChange={setOpen}
