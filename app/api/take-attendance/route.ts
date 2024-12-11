@@ -10,7 +10,7 @@ export async function POST(req: Request) {
     const { data, error: lessonError } = await supabase
       .from("lessons")
       .select("*")
-      .eq("id", Number.parseInt(body.collection_id))
+      .eq("id", body.collection_id)
       .single<ILesson>();
     if (lessonError) {
       throw new Error("Error fetching lesson");
@@ -60,7 +60,7 @@ export async function POST(req: Request) {
       s3_key: string;
       matched_faces: { external_image_id: string; similarity: number }[];
     };
-    const { matched_faces } = json;
+    const { matched_faces, s3_key } = json;
     if (matched_faces.length === 0) {
       return NextResponse.json({ message: "No faces detected" });
     }
@@ -73,14 +73,22 @@ export async function POST(req: Request) {
         { status: 404 },
       );
     }
+    const { error: rpcError2 } = await supabase.rpc("update_lesson_dates", {
+      p_lesson_id: body.collection_id,
+      p_image_url: `https://${process.env.NEXT_PUBLIC_S3_BUCKET_NAME}.s3.us-east-1.amazonaws.com/${s3_key}`,
+    });
+
     const { error: rpcError } = await supabase.rpc(
       "update_attendance_matched",
       {
         p_student_codes: studentIds,
-        p_lesson_id: Number.parseInt(body.collection_id),
+        p_lesson_id: body.collection_id,
       },
     );
-    if (rpcError) {
+
+    console.log(studentIds);
+
+    if (rpcError || rpcError2) {
       throw new Error("Error updating attendance");
     }
     return NextResponse.json(

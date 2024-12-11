@@ -5,8 +5,8 @@ export default async function ProfileSetupPage() {
   const supabase = await createClient();
   const { data: user } = await supabase.auth.getUser();
   return (
-    <div className="container mx-auto">
+    <>
       <ProfileSetup userId={user.user!.id} />
-    </div>
+    </>
   );
 }

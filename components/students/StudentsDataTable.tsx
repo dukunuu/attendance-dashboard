@@ -21,22 +21,13 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Upload, LoaderCircle } from "lucide-react";
+import { Upload } from "lucide-react";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { createClient } from "@/utils/supabase/client";
-import { fetchCourseStudents } from "@/app/actions";
-import {
-  defaultColumn,
-  previewTableColumns,
-  tableColumns,
-} from "./tableColumns";
+  addStudents,
+  deleteStudentById,
+  fetchCourseStudents,
+} from "@/app/actions";
+import { tableColumns } from "./tableColumns";
 import AddStudentDialog from "./AddStudentDialog";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -44,6 +35,9 @@ import {
   handleFileChange,
   uploadCsvImagesToS3,
 } from "./helpers";
+import CSVPreviewDialog from "../csv-preview-dialog";
+import { ToastAction } from "../ui/toast";
+import { isPostgressError } from "@/app/(protected)/helper";
 
 export default function StudentsDataTable({ profile }: { profile: User }) {
   const [data, setData] = useState<IStudent[]>([]);
@@ -57,7 +51,6 @@ export default function StudentsDataTable({ profile }: { profile: User }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const supabase = createClient();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -68,14 +61,22 @@ export default function StudentsDataTable({ profile }: { profile: User }) {
 
   const handleDelete = async (id: number) => {
     setIsLoading(true);
-    const supabase = createClient();
-    await supabase.from("students").delete().eq("id", id);
+    const error = await deleteStudentById(id);
+    if (error) {
+      console.error("Error deleting student: ", error);
+      toast({
+        title: "Алдаа",
+        description: "Сурагч устгахад алдаа гарлаа: " + error.message,
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(false);
     setData(data.filter((student) => student.id !== id));
   };
 
   const columns = tableColumns(isLoading, handleDelete, profile.role);
-  const previewColumns = previewTableColumns;
 
   const table = useReactTable({
     data,
@@ -94,32 +95,6 @@ export default function StudentsDataTable({ profile }: { profile: User }) {
     },
   });
 
-  const previewTable = useReactTable<(typeof csvData)[number]>({
-    data: csvData,
-    columns: previewColumns,
-    defaultColumn: defaultColumn,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    meta: {
-      updateData: (rowIndex: number, columnId: number, value: any) => {
-        setCsvData((old) =>
-          old.map((row, index) => {
-            if (index === rowIndex) {
-              return {
-                ...old[rowIndex]!,
-                [columnId]: value,
-              };
-            }
-            return row;
-          }),
-        );
-      },
-      removeRow: (rowIndex: number) => {
-        setCsvData((old) => old.filter((_, index) => index !== rowIndex));
-      },
-    },
-  });
-
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
@@ -135,13 +110,27 @@ export default function StudentsDataTable({ profile }: { profile: User }) {
     });
   };
 
+  const removeConflictingIds = (conflictingIds: string[]) => {
+    setCsvData((old) =>
+      old.filter((student) => !conflictingIds.includes(student.student_code)),
+    );
+  };
+
   const handleUpload = async () => {
     setIsSubmitting(true);
     const conflictingIds = findConflictingStudentIds(data, csvData);
     if (conflictingIds.length) {
       toast({
         title: "Error",
-        description: `The following student codes already exist: ${conflictingIds.join(", ")}`,
+        description: `The following student codes already exist: ${conflictingIds.length < 5 ? conflictingIds.join(", ") : conflictingIds.slice(0, 5).join(", ") + "..."}`,
+        action: (
+          <ToastAction
+            onClick={() => removeConflictingIds(conflictingIds)}
+            altText="Эдгээр оюутнуудыг орхих?"
+          >
+            Орхих
+          </ToastAction>
+        ),
       });
       setIsSubmitting(false);
       return;
@@ -157,14 +146,18 @@ export default function StudentsDataTable({ profile }: { profile: User }) {
         imageUrl: imageUrls[index] ? imageUrls[index] : student.imageUrl,
       }),
     );
-    const { data: newStudents, error } = await supabase
-      .from("students")
-      .upsert(studentsData)
-      .select();
-    if (error) {
-      console.error("Error uploading students: ", error);
+    const newStudents = await addStudents(studentsData);
+
+    if (isPostgressError(newStudents)) {
+      console.error("Error uploading students: ", newStudents);
+      toast({
+        title: "Алдаа",
+        description: "Сурагчид нэмэхэд алдаа гарлаа: " + newStudents.message,
+        variant: "destructive",
+      });
+      setIsSubmitting(false);
     }
-    setData([...data, ...(newStudents || [])]);
+    setData([...data, ...((newStudents as IStudent[]) || [])]);
     setCsvData([]);
     setIsPreviewOpen(false);
     setIsSubmitting(false);
@@ -186,78 +179,16 @@ export default function StudentsDataTable({ profile }: { profile: User }) {
               onClick={() => fileInputRef.current?.click()}
             >
               <Upload className="mr-2 h-4 w-4" />
-              Import CSV
+              CSV оруулах
             </Button>
-            <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-              <DialogContent className="max-w-4xl">
-                <DialogHeader>
-                  <DialogTitle>CSV Import Preview</DialogTitle>
-                  <DialogDescription>
-                    Review the data before uploading. Click upload when
-                    you&apos;re ready.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="max-h-[60vh] overflow-auto">
-                  <Table>
-                    <TableHeader>
-                      {previewTable.getHeaderGroups().map((headerGroup) => (
-                        <TableRow key={headerGroup.id}>
-                          {headerGroup.headers.map((header) => {
-                            return (
-                              <TableHead key={header.id}>
-                                {header.isPlaceholder
-                                  ? null
-                                  : flexRender(
-                                      header.column.columnDef.header,
-                                      header.getContext(),
-                                    )}
-                              </TableHead>
-                            );
-                          })}
-                        </TableRow>
-                      ))}
-                    </TableHeader>
-                    <TableBody>
-                      {previewTable.getRowModel().rows?.length ? (
-                        previewTable.getRowModel().rows.map((row) => (
-                          <TableRow
-                            key={row.id}
-                            data-state={row.getIsSelected() && "selected"}
-                          >
-                            {row.getVisibleCells().map((cell) => (
-                              <TableCell key={cell.id}>
-                                {flexRender(
-                                  cell.column.columnDef.cell,
-                                  cell.getContext(),
-                                )}
-                              </TableCell>
-                            ))}
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell
-                            colSpan={columns.length}
-                            className="h-24 text-center"
-                          >
-                            No results.
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-                <DialogFooter>
-                  <Button disabled={isSubmitting} onClick={handleUpload}>
-                    {isSubmitting ? (
-                      <LoaderCircle className="animate-spin" />
-                    ) : (
-                      "Upload"
-                    )}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <CSVPreviewDialog
+              isPreviewOpen={isPreviewOpen}
+              setIsPreviewOpen={setIsPreviewOpen}
+              csvData={csvData}
+              setCsvData={setCsvData}
+              handleUpload={handleUpload}
+              isSubmitting={isSubmitting}
+            />
             <input
               type="file"
               accept=".csv"

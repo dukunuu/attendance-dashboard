@@ -1,12 +1,10 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Button } from "../ui/button";
 import { ArrowUpDown, Ellipsis, MoreHorizontal } from "lucide-react";
-import Link from "next/link";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
@@ -24,7 +22,7 @@ import {
 
 export const tableColumns = (
   isLoading: boolean,
-  handleDelete: (id: number) => void,
+  handleDelete: (id: string) => void,
 ): ColumnDef<IStudent>[] => {
   const columns: ColumnDef<IStudent>[] = [
     {
@@ -38,13 +36,6 @@ export const tableColumns = (
             Оюутны код
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
-        );
-      },
-      cell: ({ row }) => {
-        return (
-          <Link href={`/students/${row.original.id}`}>
-            <Button variant={"link"}>{row.getValue("student_code")}</Button>
-          </Link>
         );
       },
     },
@@ -102,15 +93,11 @@ export const tableColumns = (
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem asChild>
-                <Link href={`/students/${student.id}`}>Edit</Link>
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                    Delete
+                    Устгах
                   </DropdownMenuItem>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -119,17 +106,18 @@ export const tableColumns = (
                       Are you absolutely sure?
                     </AlertDialogTitle>
                     <AlertDialogDescription>
-                      This action cannot be undone. This will permanently delete
-                      the student&apos;s data from our servers.
+                      Та энэ сурагчийг хичээлээс устгахдаа итгэлтэй байна уу?
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => handleDelete(student.id)}>
+                    <AlertDialogCancel>Цуцлах</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => handleDelete(student.student_code)}
+                    >
                       {isLoading ? (
                         <Ellipsis className="animate-puls" />
                       ) : (
-                        "Delete"
+                        "Устгах"
                       )}
                     </AlertDialogAction>
                   </AlertDialogFooter>

@@ -23,7 +23,7 @@ export default function AddStudentDialog({
 }: {
   schoolId?: number;
   courseId?: number;
-  lessonId?: number;
+  lessonId?: string;
   addTo: "course" | "lesson";
   addStudentsAction: (students: IStudent[]) => Promise<void>;
 }) {
@@ -105,8 +105,12 @@ export default function AddStudentDialog({
             onChange={(e) => setSearchTerm(e.target.value)}
             className="mb-4"
           />
-          <ScrollArea className="h-[300px] rounded-md border p-4">
-            {studentsLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+          <ScrollArea className="h-[300px] rounded-md items-center justify-center flex flex-col border p-4">
+            {studentsLoading && (
+              <div className="w-full h-full flex justify-center items-center">
+                <Loader2 className="h-10 w-10 animate-spin" />
+              </div>
+            )}
             {!studentsLoading &&
               filteredStudents.map((student) => (
                 <div
@@ -115,10 +119,11 @@ export default function AddStudentDialog({
                   onClick={() => toggleStudent(student)}
                 >
                   <div
-                    className={`w-5 h-5 border rounded-sm flex items-center justify-center ${selectedStudents.some((s) => s.id === student.id)
+                    className={`w-5 h-5 border rounded-sm flex items-center justify-center ${
+                      selectedStudents.some((s) => s.id === student.id)
                         ? "bg-primary text-primary-foreground"
                         : ""
-                      }`}
+                    }`}
                   >
                     {selectedStudents.some((s) => s.id === student.id) && (
                       <Check className="w-4 h-4" />

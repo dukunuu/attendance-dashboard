@@ -29,7 +29,7 @@ export default function LessonsCalendar({ lessons }: { lessons: ILesson[] }) {
   });
   return (
     <Calendar events={lessonDates} isEditable={false} view="week" locale={mn}>
-      <div className="h-dvh md:p-14 p-2 flex flex-col">
+      <div className="h-dvh flex flex-col">
         <div className="flex justify-evenly items-center gap-2 mb-6">
           <CalendarPrevTrigger>
             <ChevronLeft size={20} />

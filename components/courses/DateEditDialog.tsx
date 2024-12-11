@@ -48,7 +48,7 @@ const monthEventVariants = cva("size-2 rounded-full", {
 type Props = {
   open: boolean;
   date?: Date;
-  event?: CalendarEvent;
+  event?: CalendarEvent | null;
   onOpenChange: () => void;
 };
 
@@ -61,7 +61,7 @@ const schema = z.object({
     .max(360, "Duration must be at most 360 minutes"),
   color: z.enum(["default", "blue", "green", "pink", "purple"]),
   isRepeating: z.boolean(),
-  frequency: z.enum(["daily", "weekly", "monthly"]),
+  frequency: z.enum(["Өдөр бүр", "Долоо хоног бүр", "Сар бүр"]),
   interval: z.number().min(1, "Interval must be at least 1"),
   endDate: z.date().optional(),
 });
@@ -79,6 +79,7 @@ export default function DateEditDialog({
 
   const {
     control,
+    reset,
     handleSubmit,
     watch,
     setValue,
@@ -86,14 +87,14 @@ export default function DateEditDialog({
   } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      title: event?.title || "",
+      title: event?.title,
       startDate: event?.start || date || new Date(),
       duration: event
         ? (event.end.getTime() - event.start.getTime()) / 60000
         : 60,
       color: event?.color || "default",
       isRepeating: false,
-      frequency: "daily",
+      frequency: "Долоо хоног бүр",
       interval: 1,
       endDate: new Date(),
     },
@@ -111,8 +112,20 @@ export default function DateEditDialog({
   };
 
   useEffect(() => {
+    reset({
+      title: event?.title,
+      startDate: event?.start || date || new Date(),
+      duration: event
+        ? (event.end.getTime() - event.start.getTime()) / 60000
+        : 60,
+      color: event?.color || "default",
+      isRepeating: events.filter((e) => e.title === event?.title).length > 1,
+    });
+  }, [event]);
+
+  useEffect(() => {
     if (!isRepeating) {
-      setValue("frequency", "daily");
+      setValue("frequency", "Долоо хоног бүр");
       setValue("interval", 1);
       setValue("endDate", undefined);
     }
@@ -152,13 +165,13 @@ export default function DateEditDialog({
     let currentDate = data.startDate;
     while (isBefore(currentDate, data.endDate)) {
       switch (data.frequency) {
-        case "daily":
+        case "Өдөр бүр":
           currentDate = addDays(currentDate, data.interval);
           break;
-        case "weekly":
+        case "Долоо хоног бүр":
           currentDate = addWeeks(currentDate, data.interval);
           break;
-        case "monthly":
+        case "Сар бүр":
           currentDate = addDays(currentDate, data.interval * 30);
           break;
         default:
@@ -191,18 +204,18 @@ export default function DateEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] px-5">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Event" : "Create Event"}</DialogTitle>
+          <DialogTitle>{isEdit ? "Цаг засах" : "Цаг нэмэх"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
           <div>
-            <Label htmlFor="title">Event Title</Label>
+            <Label htmlFor="title">Цагийн нэр</Label>
             <Controller
               name="title"
               control={control}
               render={({ field }) => (
-                <Input {...field} placeholder="Event Title" />
+                <Input {...field} placeholder="Цагийн нэр" />
               )}
             />
             {errors.title && (
@@ -213,7 +226,7 @@ export default function DateEditDialog({
           </div>
 
           <div>
-            <Label htmlFor="startDate">Start Date</Label>
+            <Label htmlFor="startDate">Эхлэх цаг</Label>
             <Controller
               name="startDate"
               control={control}
@@ -224,7 +237,7 @@ export default function DateEditDialog({
           </div>
 
           <div>
-            <Label htmlFor="duration">Duration (minutes)</Label>
+            <Label htmlFor="duration">Үргэлжлэх хугацаа (минут)</Label>
             <Controller
               name="duration"
               control={control}
@@ -248,7 +261,7 @@ export default function DateEditDialog({
           </div>
 
           <div>
-            <Label htmlFor="color">Color</Label>
+            <Label htmlFor="color">Өнгө</Label>
             <Controller
               name="color"
               control={control}
@@ -291,13 +304,13 @@ export default function DateEditDialog({
                 />
               )}
             />
-            <Label htmlFor="isRepeating">Repeating Event</Label>
+            <Label htmlFor="isRepeating">Давтагдах уу?</Label>
           </div>
 
           {isRepeating && (
             <>
               <div>
-                <Label htmlFor="frequency">Repeat Frequency</Label>
+                <Label htmlFor="frequency">Давтамж</Label>
                 <Controller
                   name="frequency"
                   control={control}
@@ -307,14 +320,16 @@ export default function DateEditDialog({
                       defaultValue={field.value}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select frequency" />
+                        <SelectValue placeholder="Давтамж сонгох" />
                       </SelectTrigger>
                       <SelectContent>
-                        {["daily", "weekly", "monthly"].map((freq) => (
-                          <SelectItem key={freq} value={freq}>
-                            {freq}
-                          </SelectItem>
-                        ))}
+                        {["Өдөр бүр", "Долоо хоног бүр", "Сар бүр"].map(
+                          (freq) => (
+                            <SelectItem key={freq} value={freq}>
+                              {freq}
+                            </SelectItem>
+                          ),
+                        )}
                       </SelectContent>
                     </Select>
                   )}
@@ -322,7 +337,7 @@ export default function DateEditDialog({
               </div>
 
               <div>
-                <Label htmlFor="interval">Repeat Interval</Label>
+                <Label htmlFor="interval">Интервал</Label>
                 <Controller
                   name="interval"
                   control={control}
@@ -345,7 +360,7 @@ export default function DateEditDialog({
               </div>
 
               <div>
-                <Label htmlFor="endDate">End Date</Label>
+                <Label htmlFor="endDate">Дуусах огноо</Label>
                 <Controller
                   name="endDate"
                   control={control}
@@ -360,10 +375,10 @@ export default function DateEditDialog({
           <DialogFooter>
             {isEdit && (
               <Button type="button" variant="destructive" onClick={removeEvent}>
-                Delete
+                Устгах
               </Button>
             )}
-            <Button type="submit">{isEdit ? "Update" : "Create"}</Button>
+            <Button type="submit">{isEdit ? "Засах" : "Нэмэх"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

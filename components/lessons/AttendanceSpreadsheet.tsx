@@ -6,12 +6,14 @@ import { addMinutes, format, isWithinInterval } from "date-fns";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { debounce } from "lodash";
 import { Button } from "../ui/button";
-import { DownloadCloud, Image, Loader2, QrCode } from "lucide-react";
+import { Download, Image, Loader2, QrCode, Upload } from "lucide-react";
 import AddStudentDialog from "../add-student-dialog";
 import { addStudentsToLesson } from "@/app/actions";
 import { AttendanceDialog } from "./AttendanceDialog";
 import Spreadsheet from "./Spreadsheet";
 import { useToast } from "@/hooks/use-toast";
+import CSVPreviewDialog from "../csv-preview-dialog";
+import { handleFileChange } from "../students/helpers";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -27,6 +29,13 @@ export default function AttendanceSpreadsheet({ lesson }: { lesson: ILesson }) {
   const [openImage, setOpenImage] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const changesRef = useRef<IStudent[]>([]);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [csvData, setCsvData] = useState<Omit<IStudent, "id" | "school_id">[]>(
+    [],
+  );
+  const [isSubmitting, setIsSubmittin] = useState(false);
+
+  const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const lessonCurrentlyInSession = useMemo(() => {
@@ -101,6 +110,29 @@ export default function AttendanceSpreadsheet({ lesson }: { lesson: ILesson }) {
     [save],
   );
 
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const csvStudents = await handleFileChange(event);
+    if (csvStudents) {
+      setIsPreviewOpen(true);
+      setCsvData(csvStudents);
+      return;
+    }
+    toast({
+      title: "Error",
+      description: "Invalid CSV file.",
+    });
+  };
+
+  const handleUpload = async () => {
+    setIsSubmittin(true);
+    await addStudentToLesson(csvData as IStudent[]);
+    setCsvData([]);
+    setIsPreviewOpen(false);
+    setIsSubmittin(false);
+  };
+
   const generateQRCode = async () => {
     setQrLoading(true);
     const { data, error } = await supabase
@@ -121,8 +153,8 @@ export default function AttendanceSpreadsheet({ lesson }: { lesson: ILesson }) {
     const studentData = newStudents.map((student) => ({
       ...student,
       attendance_data: lesson.dates!.map((date) => ({
-        date: date.start as string,
-        close: date.end as string,
+        date: date.start as unknown as string,
+        close: date.end as unknown as string,
         present: false,
       })),
     }));
@@ -137,7 +169,15 @@ export default function AttendanceSpreadsheet({ lesson }: { lesson: ILesson }) {
 
       return `${folder}/${filename}`;
     });
-    await addStudentsToLesson(lesson.id, newStudents);
+    const error = await addStudentsToLesson(lesson.id, newStudents);
+    if (error) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
     try {
       await fetch("/api/create-lesson-images", {
         method: "POST",
@@ -163,7 +203,7 @@ export default function AttendanceSpreadsheet({ lesson }: { lesson: ILesson }) {
 
   const fetchStudents = useCallback(async () => {
     const { data, error } = await supabase
-      .rpc("get_students_in_lesson", { lessonid: lesson.id })
+      .rpc("get_students_in_lesson", { p_lesson_id: lesson.id })
       .returns<IStudent[]>();
     if (error) {
       toast({
@@ -229,8 +269,8 @@ export default function AttendanceSpreadsheet({ lesson }: { lesson: ILesson }) {
 
   return (
     <div className="flex flex-col items-center justify-center w-full">
-      <div className="flex items-center justify-between w-full">
-        <div className="flex gap-2">
+      <div className="flex md:items-center gap-2 flex-col md:flex-row justify-between w-full">
+        <div className="flex gap-2 justify-between md:justify-normal">
           <Button
             disabled={!lessonCurrentlyInSession}
             variant={"outline"}
@@ -246,14 +286,40 @@ export default function AttendanceSpreadsheet({ lesson }: { lesson: ILesson }) {
             <Image />
           </Button>
         </div>
-        <div className="flex gap-2">
-          <Button className="gap-1" variant={"outline"} onClick={exportToCSV}>
-            <DownloadCloud /> CSV татах
+        <div className="flex gap-2 w-full flex-wrap">
+          <Button
+            variant={"outline"}
+            onClick={() => {
+              if (inputRef.current) {
+                inputRef.current.click();
+              }
+            }}
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            CSV oруулах
           </Button>
+          <Button className="gap-1" variant={"outline"} onClick={exportToCSV}>
+            <Download className="h-4 w-4 mr-2" /> CSV татах
+          </Button>
+          <input
+            type="file"
+            ref={inputRef}
+            accept=".csv"
+            className="hidden"
+            onChange={handleFileUpload}
+          />
           <AddStudentDialog
             lessonId={lesson.id}
             addTo="lesson"
             addStudentsAction={addStudentToLesson}
+          />
+          <CSVPreviewDialog
+            csvData={csvData}
+            setCsvData={setCsvData}
+            isSubmitting={isSubmitting}
+            setIsPreviewOpen={setIsPreviewOpen}
+            isPreviewOpen={isPreviewOpen}
+            handleUpload={handleUpload}
           />
         </div>
         <AttendanceDialog
@@ -266,7 +332,7 @@ export default function AttendanceSpreadsheet({ lesson }: { lesson: ILesson }) {
           open={openImage}
           onOpenChange={setOpenImage}
           type="image"
-          lessonId={`${lesson.id}`}
+          lessonId={lesson.id}
         />
       </div>
       <div className="flex items-center justify-end w-full mt-5">
@@ -284,6 +350,7 @@ export default function AttendanceSpreadsheet({ lesson }: { lesson: ILesson }) {
       <ScrollArea className="max-w-full mt-5 whitespace-nowrap">
         <Spreadsheet
           students={students}
+          dates={lesson.dates}
           onEdit={handleCellChange}
           onDelete={handleDelete}
         />

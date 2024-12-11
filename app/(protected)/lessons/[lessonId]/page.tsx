@@ -12,7 +12,7 @@ const getLesson = async (lessonId: string) => {
   const { data: lesson, error } = await supabase
     .from("lessons")
     .select()
-    .eq("id", Number.parseInt(lessonId))
+    .eq("id", lessonId)
     .single<ILesson>();
   if (error) {
     console.error(error);

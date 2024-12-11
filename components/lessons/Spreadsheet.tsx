@@ -13,15 +13,24 @@ import {
 import { parseISO, format, compareAsc } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../ui/dialog";
 
 interface SpreadsheetProps {
   students: IStudent[];
   onEdit: (studentCode: number, date: string, present: boolean) => void;
   onDelete: (studentId: number) => void;
+  dates: { start: Date; end: Date; img: string; color: string }[];
 }
 
 const Spreadsheet: React.FC<SpreadsheetProps> = ({
   students,
+  dates,
   onEdit,
   onDelete,
 }) => {
@@ -33,6 +42,11 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
       compareAsc(parseISO(a), parseISO(b)),
     );
   }, [students]);
+
+  const dateHasImage = (date: string) => {
+    return !!dates.find((d) => (d.start as unknown as string) === date)?.img
+      ?.length;
+  };
 
   const handleToggleAttendance = (
     studentCode: number,
@@ -53,17 +67,49 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
           <TableRow>
             <TableHead className="w-[100px]">Оюутны код</TableHead>
             <TableHead>Нэр</TableHead>
-            {attendanceDates.map((date) => (
-              <TableHead key={date} className="text-center">
-                {formatDate(date)}
-              </TableHead>
-            ))}
+            {attendanceDates.map((date) => {
+              if (dateHasImage(date)) {
+                return (
+                  <TableHead key={date} className="text-center">
+                    <Dialog>
+                      <DialogTrigger className="hover:underline">
+                        {formatDate(date)}
+                      </DialogTrigger>
+                      <DialogContent
+                        className="sm:max-w-[425px] w-full flex flex-col items-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <DialogHeader>
+                          <DialogTitle>Image Preview</DialogTitle>
+                        </DialogHeader>
+                        <div className="mt-4 w-full flex justify-center">
+                          <img
+                            src={
+                              dates.find(
+                                (d) => (d.start as unknown as string) === date,
+                              )?.img
+                            }
+                            alt="Preview image"
+                            className="w-full rounded-lg object-contain"
+                          />
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </TableHead>
+                );
+              }
+              return (
+                <TableHead key={date} className="text-center">
+                  {formatDate(date)}
+                </TableHead>
+              );
+            })}
             <TableHead className="w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {students.map((student) => (
-            <TableRow key={student.student_code}>
+            <TableRow key={student.student_code} className="py-0">
               <TableCell>{student.student_code}</TableCell>
               <TableCell>{`${student.last_name.at(0)}.${student.first_name}`}</TableCell>
               {attendanceDates.map((date) => {
