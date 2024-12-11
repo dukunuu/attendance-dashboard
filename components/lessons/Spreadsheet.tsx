@@ -63,7 +63,7 @@ const Spreadsheet: React.FC<SpreadsheetProps> = ({
         </TableHeader>
         <TableBody>
           {students.map((student) => (
-            <TableRow key={student.student_code}>
+            <TableRow key={student.student_code} className="py-0">
               <TableCell>{student.student_code}</TableCell>
               <TableCell>{`${student.last_name.at(0)}.${student.first_name}`}</TableCell>
               {attendanceDates.map((date) => {

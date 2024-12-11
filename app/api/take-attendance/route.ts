@@ -10,7 +10,7 @@ export async function POST(req: Request) {
     const { data, error: lessonError } = await supabase
       .from("lessons")
       .select("*")
-      .eq("id", Number.parseInt(body.collection_id))
+      .eq("id", body.collection_id)
       .single<ILesson>();
     if (lessonError) {
       throw new Error("Error fetching lesson");
@@ -77,7 +77,7 @@ export async function POST(req: Request) {
       "update_attendance_matched",
       {
         p_student_codes: studentIds,
-        p_lesson_id: Number.parseInt(body.collection_id),
+        p_lesson_id: body.collection_id,
       },
     );
     if (rpcError) {

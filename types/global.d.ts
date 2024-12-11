@@ -2,7 +2,7 @@ import { CalendarEvent } from "@/components/courses/FullCalendar";
 
 declare global {
   interface ILesson {
-    id: number;
+    id: string;
     title: string;
     course_id: number;
     dates?: Omit<CalendarEvent, "id" | "title">[];
@@ -48,4 +48,4 @@ declare global {
   }
 }
 
-export { };
+export {};

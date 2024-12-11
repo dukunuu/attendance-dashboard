@@ -39,6 +39,7 @@ import {
 import { useHotkeys } from "react-hotkeys-hook";
 import DateEditDialog from "./DateEditDialog";
 import Link from "next/link";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const monthEventVariants = cva("size-2 rounded-full", {
   variants: {
@@ -221,7 +222,7 @@ const EventGroup = ({
   return (
     <>
       <div
-        className="h-20 border-t last:border-b relative"
+        className="h-10 border-t last:border-b relative"
         onClick={() => handleOpenDialog()}
       >
         {events
@@ -263,16 +264,18 @@ const EventGroup = ({
             );
           })}
       </div>
-      {isEditable && (
+      {isEditable ? (
         <DateEditDialog
           open={dialogOpen}
           date={hour}
-          event={currentEvent!}
+          event={currentEvent}
           onOpenChange={() => {
             setDialogOpen(false);
             setCurrentEvent(null);
           }}
         />
+      ) : (
+        <></>
       )}
     </>
   );
@@ -324,9 +327,11 @@ const CalendarWeekView = () => {
 
   if (view !== "week") return null;
 
+  const isMobile = useIsMobile();
+
   return (
     <div className="flex flex-col relative overflow-auto h-full">
-      <div className="flex sticky top-0 bg-card z-10 border-b mb-3">
+      <div className="flex sticky top-0 bg-card z-20 border-b mb-3">
         <div className="w-12"></div>
         {headerDays.map((date, i) => (
           <div
@@ -336,12 +341,12 @@ const CalendarWeekView = () => {
               [0, 6].includes(i) && "text-muted-foreground/50",
             )}
           >
-            {format(date, "E", { locale })}
+            {isMobile ? "" : format(date, "E", { locale })}
             <span
               className={cn(
                 "h-6 grid place-content-center",
                 isToday(date) &&
-                "bg-primary text-primary-foreground rounded-full size-6",
+                  "bg-primary text-primary-foreground rounded-full size-6",
               )}
             >
               {format(date, "d")}
@@ -499,8 +504,8 @@ const CalendarYearView = () => {
                     className={cn(
                       "aspect-square grid place-content-center size-full tabular-nums",
                       isSameDay(today, _date) &&
-                      getMonth(_date) === i &&
-                      "bg-primary text-primary-foreground rounded-full",
+                        getMonth(_date) === i &&
+                        "bg-primary text-primary-foreground rounded-full",
                     )}
                   >
                     {format(_date, "d")}
@@ -643,12 +648,12 @@ const TimeTable = () => {
       {Array.from(Array(25).keys()).map((hour) => {
         return (
           <div
-            className="text-right relative text-xs text-muted-foreground/50 h-20 last:h-0"
+            className="text-right relative text-xs text-muted-foreground/50 h-10 last:h-0"
             key={hour}
           >
             {now.getHours() === hour && (
               <div
-                className="absolute z- left-full translate-x-2 max-w-3xl w-dvw h-[2px] bg-red-500"
+                className="absolute left-full translate-x-2 lg:max-w-[58rem] md:max-w-[40rem] max-w-[calc(100dvw-5.5rem)] w-dvw h-[2px] bg-red-500"
                 style={{
                   top: `${(now.getMinutes() / 60) * 100}%`,
                 }}

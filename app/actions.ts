@@ -192,39 +192,61 @@ export const fetchCourses = async () => {
 export const addStudentToCourse = async (
   courseId: number,
   students: IStudent[],
+  schoolId: number,
 ) => {
   "use server";
   const supabase = await createClient();
-  const insertData = students.map((student) => ({
-    course_id: courseId,
-    student_id: student.id,
-  }));
-  const { error } = await supabase.from("course_students").insert(insertData);
+  const { data, error: rpcError } = await supabase
+    .rpc("get_students_not_in_course", {
+      p_course_id: courseId,
+      p_school_id: schoolId,
+    })
+    .returns<IStudent[]>();
+  if (rpcError) {
+    console.error(rpcError);
+    return rpcError;
+  }
+  const insertDataSet = new Set(students.map((data) => data.student_code));
+  const filteredData = data
+    .filter((el) => insertDataSet.has(el.student_code))
+    .map((el) => ({ course_id: courseId, student_id: el.id }));
+  const { error } = await supabase.from("course_students").insert(filteredData);
   if (error) {
     console.error(error);
+    return error;
   }
 };
 
 export const addStudentsToLesson = async (
-  lessonId: number,
+  lessonId: string,
   students: IStudent[],
 ) => {
   "use server";
   const supabase = await createClient();
-  const insertData = students.map((student) => ({
-    lesson_id: lessonId,
-    student_id: student.id,
-  }));
+  const { data, error: studentsError } = await supabase
+    .rpc("get_students_not_in_lesson", {
+      p_lesson_id: lessonId,
+    })
+    .returns<IStudent[]>();
+  if (studentsError) {
+    console.error(studentsError);
+    return studentsError;
+  }
+  const insertDataSet = new Set(students.map((data) => data.student_code));
+  const filteredData = data
+    .filter((el) => insertDataSet.has(el.student_code))
+    .map((el) => ({ lesson_id: lessonId, student_id: el.id }));
   const { error } = await supabase.rpc("add_students_to_course_lessons", {
-    p_student_lesson_pairs: insertData,
+    p_student_lesson_pairs: filteredData,
   });
   if (error) {
     console.error(error);
+    return error;
   }
 };
 
 export const updateAttendance = async (
-  p_lesson_id: number,
+  p_lesson_id: string,
   p_student_code: string,
   p_first_name: string,
 ) => {
@@ -236,4 +258,107 @@ export const updateAttendance = async (
     p_lesson_id,
   });
   return { data, error };
+};
+export async function getCourse(id: string): Promise<ICourse | null> {
+  const supabase = await createClient();
+  const { data: course, error } = await supabase
+    .from("courses")
+    .select()
+    .eq("id", id)
+    .single<ICourse>();
+
+  if (error) {
+    console.error(error);
+    return null;
+  }
+
+  return course;
+}
+
+export async function getLessons(courseId: number): Promise<ILesson[]> {
+  const supabase = await createClient();
+  const { data: lessons, error } = await supabase
+    .from("lessons")
+    .select()
+    .eq("course_id", courseId)
+    .returns<ILesson[]>();
+
+  if (error) {
+    console.error(error);
+    return [];
+  }
+
+  return lessons;
+}
+
+export async function getProfile() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+  if (error) {
+    return null;
+  }
+  const { data: profile, error: profileError } = await supabase
+    .from("users")
+    .select()
+    .eq("id", user!.id)
+    .single<User>();
+  if (profileError) {
+    return null;
+  }
+  return profile;
+}
+
+export const deleteCourseById = async (courseId: number) => {
+  "use server";
+  const supabase = await createClient();
+  const { error } = await supabase.from("courses").delete().eq("id", courseId);
+  if (error) {
+    console.error(error);
+    return error;
+  }
+};
+
+export const deleteCourseStudent = async (payload: {
+  p_student_code: string;
+  p_course_id: number;
+}) => {
+  "use server";
+  const supabase = await createClient();
+
+  const { error } = await supabase.rpc("remove_course_student", payload);
+  if (error) {
+    console.error(error);
+    return error;
+  }
+};
+
+export const deleteStudentById = async (studentId: number) => {
+  "use server";
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("students")
+    .delete()
+    .eq("id", studentId);
+  if (error) {
+    console.error(error);
+    return error;
+  }
+};
+
+export const addStudents = async (students: Omit<IStudent, "id">[]) => {
+  "use server";
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("students")
+    .upsert(students)
+    .select()
+    .returns<IStudent[]>();
+  if (error) {
+    console.error(error);
+    return error;
+  }
+  return data;
 };

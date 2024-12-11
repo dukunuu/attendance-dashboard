@@ -1,12 +1,11 @@
 import { notFound } from "next/navigation";
 import Image from "next/image";
-import { format, parseISO, differenceInDays } from "date-fns";
+import { format, parseISO, isWithinInterval, isBefore } from "date-fns";
 import { ArrowLeft, CalendarIcon, Clock, Copy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
 import { mn } from "date-fns/locale";
-import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -14,65 +13,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import LessonsCalendar from "@/components/courses/LessonsCalendar";
-
-async function getCourse(id: string): Promise<ICourse | null> {
-  const supabase = await createClient();
-  const { data: course, error } = await supabase
-    .from("courses")
-    .select()
-    .eq("id", id)
-    .single<ICourse>();
-
-  if (error) {
-    console.error(error);
-    return null;
-  }
-
-  return course;
-}
-
-async function getLessons(courseId: number): Promise<ILesson[]> {
-  const supabase = await createClient();
-  const { data: lessons, error } = await supabase
-    .from("lessons")
-    .select()
-    .eq("course_id", courseId)
-    .returns<ILesson[]>();
-
-  if (error) {
-    console.error(error);
-    return [];
-  }
-
-  return lessons;
-}
-function calculateDateLeft(date: Date): string {
-  const now = new Date();
-  const diff = differenceInDays(date, now);
-
-  if (diff === 0) {
-    return "1 долоо хоног";
-  } else if (diff < 0) {
-    return "Хичээл дууссан";
-  } else {
-    return `${diff} хоног үлдлээ`;
-  }
-}
-function calculateDuration(startDate: string, endDate: string): string {
-  const start = parseISO(startDate);
-  const end = parseISO(endDate);
-  const days = differenceInDays(end, start) + 1; // +1 to include both start and end days
-  const weeks = Math.floor(days / 7);
-  const remainingDays = days % 7;
-
-  if (weeks === 0) {
-    return `${days} хоног`;
-  } else if (remainingDays === 0) {
-    return `${weeks} долоо хоног`;
-  } else {
-    return `${weeks * 7 + remainingDays} хоног`;
-  }
-}
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Suspense } from "react";
+import CourseStudentsTable from "@/components/courses/CourseStudentsTable";
+import { getCourse, getLessons, getProfile } from "@/app/actions";
 
 type Props = { params: Promise<{ courseId: string }> };
 
@@ -84,8 +28,27 @@ export default async function CourseDetailsPage({ params }: Props) {
     notFound();
   }
   const lessons = await getLessons(course!.id);
+  const profile = await getProfile();
+  if (!profile) {
+    notFound();
+  }
 
-  const duration = calculateDuration(course.start_date, course.end_date);
+  const currentLesson = lessons.find((lesson) => {
+    return lesson.dates?.some((date) => {
+      const now = new Date();
+      return isWithinInterval(now.toISOString(), date);
+    });
+  });
+
+  const nextLesson = lessons.find((lesson) => {
+    return lesson.dates?.some((date) => {
+      const now = new Date();
+      return isBefore(
+        now.toISOString(),
+        parseISO(date.start as unknown as string),
+      );
+    });
+  });
 
   return (
     <div className="flex w-full flex-col">
@@ -96,85 +59,143 @@ export default async function CourseDetailsPage({ params }: Props) {
         <ArrowLeft className="mr-2 h-4 w-4" />
         Хичээлүүд рүү буцах
       </Link>
-
-      <div className="grid md:grid-cols-3 gap-8 mb-6">
-        <div className="md:col-span-2">
-          <h1 className="text-3xl font-bold mb-4">
-            {course.name}{" "}
-            <Badge>
-              <Copy />
-            </Badge>
-          </h1>
-          <div className="flex items-center space-x-4 mb-4">
-            <Badge variant="secondary">
-              {format(parseISO(course.start_date), "MMM d")} -{" "}
-              {format(parseISO(course.end_date), "MMM d, yyyy")}
-            </Badge>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="text-sm text-gray-500 flex items-center">
-                    <Clock className="mr-1 h-4 w-4" />
-                    {duration}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {calculateDateLeft(parseISO(course.end_date))}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <span className="text-sm text-gray-500 flex items-center">
-              <CalendarIcon className="mr-1 h-4 w-4" />
-              {format(parseISO(course.created_at!), "yyyy оны MMMын d ", {
-                locale: mn,
-              })}
-              {"-д үүсгэсэн"}
-            </span>
+      <h1 className="text-3xl font-bold mb-4">{course.name}</h1>
+      <Tabs defaultValue="info">
+        <TabsList className="grid w-full grid-cols-2 mb-4">
+          <TabsTrigger value="info">Хичээлийн мэдээлэл</TabsTrigger>
+          <TabsTrigger value="students">Хичээлийн сурагчид</TabsTrigger>
+        </TabsList>
+        <TabsContent value="info">
+          <div className="grid md:grid-cols-3 gap-8 mb-6">
+            <div className="md:col-span-2">
+              <div className="flex items-center gap-2 mb-4">
+                <Badge variant="secondary">
+                  {format(parseISO(course.start_date), "MMM d")} -{" "}
+                  {format(parseISO(course.end_date), "MMM d, yyyy")}
+                </Badge>
+              </div>
+              <p className="text-gray-600 mb-6 whitespace-pre-wrap">
+                {course.description}
+              </p>
+              <div className="bg-gray-100 dark:bg-[#1e1e1e]  p-4 rounded-lg mb-2">
+                <h2 className="text-lg font-semibold mb-2">
+                  Хичээлийн мэдээлэл
+                </h2>
+                <ul className="space-y-2">
+                  <li className="flex items-center">
+                    <span className="font-medium mr-2">Эхлэх огноо:</span>
+                    {format(parseISO(course.start_date), "MMMын d, yyyy", {
+                      locale: mn,
+                    })}
+                  </li>
+                  <li className="flex items-center">
+                    <span className="font-medium mr-2">Дуусах огноо:</span>
+                    {format(parseISO(course.end_date), "MMMын d, yyyy", {
+                      locale: mn,
+                    })}
+                  </li>
+                  <li className="flex items-center">
+                    <span className="font-medium mr-2">Үүсгэсэн огноо:</span>
+                    {format(
+                      parseISO(course.created_at as unknown as string),
+                      "MMMын d, yyyy",
+                      {
+                        locale: mn,
+                      },
+                    )}
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div className="flex flex-col w-ful>l gap-5">
+              <div className="relative aspect-video rounded-lg overflow-hidden">
+                <Image
+                  src={course.imageUrl}
+                  alt={course.name}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                {currentLesson && (
+                  <div>
+                    <span className="font-semibold animate-pulse">
+                      Идэвхитэй цаг:{" "}
+                    </span>
+                    <Link
+                      href={`/lessons/${currentLesson.id}`}
+                      className="underline"
+                    >
+                      {currentLesson.title}
+                    </Link>
+                  </div>
+                )}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div>
+                        <span className="font-semibold">Дараагийн цаг: </span>
+                        <span>
+                          {nextLesson ? (
+                            <Link
+                              href={`/lessons/${nextLesson.id}`}
+                              className="underline"
+                            >
+                              {nextLesson.title}
+                            </Link>
+                          ) : (
+                            "Байхгүй"
+                          )}
+                        </span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {nextLesson ? (
+                        <div>
+                          <div>
+                            <span className="font-semibold">Эхлэх огноо: </span>
+                            {format(
+                              parseISO(
+                                nextLesson.dates![0].start as unknown as string,
+                              ),
+                              "yyyy-MM-dd",
+                            )}
+                          </div>
+                          <div>
+                            <span className="font-semibold">Цаг: </span>
+                            {format(
+                              parseISO(
+                                nextLesson.dates![0].start as unknown as string,
+                              ),
+                              "HH:mm",
+                            )}
+                            -
+                            {format(
+                              parseISO(
+                                nextLesson.dates![0].end as unknown as string,
+                              ),
+                              "HH:mm",
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        "Байхгүй"
+                      )}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            </div>
           </div>
-          <p className="text-gray-600 mb-6 whitespace-pre-wrap">
-            {course.description}
-          </p>
-          <div className="bg-gray-100 dark:bg-[#1e1e1e]  p-4 rounded-lg mb-2">
-            <h2 className="text-lg font-semibold mb-2">Хичээлийн мэдээлэл</h2>
-            <ul className="space-y-2">
-              <li className="flex items-center">
-                <span className="font-medium mr-2">Эхлэх огноо:</span>
-                {format(parseISO(course.start_date), "MMMын d, yyyy", {
-                  locale: mn,
-                })}
-              </li>
-              <li className="flex items-center">
-                <span className="font-medium mr-2">Дуусах огноо:</span>
-                {format(parseISO(course.end_date), "MMMын d, yyyy", {
-                  locale: mn,
-                })}
-              </li>
-              <li className="flex items-center">
-                <span className="font-medium mr-2">
-                  <Link href={`/courses/${course.id}/students`}>
-                    <Button className="p-0 font-medium mr-2" variant={"link"}>
-                      Нийт сурагчдын тоо:
-                    </Button>
-                  </Link>{" "}
-                  <b>{course.student_count}</b>
-                </span>
-              </li>
-            </ul>
-          </div>
-        </div>
-        <div className="flex flex-col w-ful>l gap-5">
-          <div className="relative aspect-video rounded-lg overflow-hidden">
-            <Image
-              src={course.imageUrl}
-              alt={course.name}
-              fill
-              className="object-cover"
-            />
-          </div>
-        </div>
-      </div>
-      <hr />
-      <LessonsCalendar lessons={lessons} />
+          <hr className="mb-4" />
+          <LessonsCalendar lessons={lessons} />
+        </TabsContent>
+        <TabsContent value="students">
+          <Suspense fallback={<div>Loading...</div>}>
+            <CourseStudentsTable profile={profile} courseId={courseId} />
+          </Suspense>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

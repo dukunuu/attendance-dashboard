@@ -25,7 +25,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </nav>
-        <div className="flex flex-col max-w-5xl p-5">{children}</div>
+        <div className="flex flex-col justify-center items-center h-[calc(100dvh-220px)] max-w-5xl p-5 w-full">
+          {children}
+        </div>
         <footer className="w-full flex items-center justify-center border-t mx-auto text-center text-xs gap-8 py-16">
           <p>
             Powered by{" "}

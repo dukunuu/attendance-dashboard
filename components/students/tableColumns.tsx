@@ -130,7 +130,9 @@ export const tableColumns = (
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => handleDelete(student.id)}>
+                    <AlertDialogAction
+                      onClick={() => handleDelete(student.student_code)}
+                    >
                       {isLoading ? (
                         <Ellipsis className="animate-puls" />
                       ) : (

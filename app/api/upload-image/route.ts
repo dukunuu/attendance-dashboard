@@ -1,4 +1,6 @@
 import {
+  DeleteObjectCommand,
+  DeleteObjectCommandInput,
   PutObjectCommand,
   PutObjectCommandInput,
   S3Client,
@@ -45,6 +47,24 @@ export async function POST(req: Request) {
       message: "File uploaded successfully",
       status: 200,
       imageUrl: fullFileName,
+    });
+  } catch (error) {
+    return NextResponse.json({ error: JSON.stringify(error) }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const formData = await req.formData();
+    const fileName = formData.get("path") as string;
+    const params = {
+      Bucket: process.env.NEXT_PUBLIC_S3_BUCKET_NAME,
+      Key: `${fileName}`,
+    } as DeleteObjectCommandInput;
+    await s3Client.send(new DeleteObjectCommand(params));
+    return NextResponse.json({
+      message: "File deleted successfully",
+      status: 200,
     });
   } catch (error) {
     return NextResponse.json({ error: JSON.stringify(error) }, { status: 500 });

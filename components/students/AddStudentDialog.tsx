@@ -60,7 +60,6 @@ export default function AddStudentDialog() {
   const onSubmit = async (data: StudentFormData) => {
     try {
       const newStudent = await addStudent(data);
-      console.log(newStudent);
       toast({
         title: "Student added successfully",
         description: `${newStudent.first_name} ${newStudent.last_name} has been added.`,

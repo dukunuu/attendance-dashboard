@@ -25,7 +25,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { createClient } from "@/utils/supabase/client";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,6 +44,7 @@ import {
   AlertDialogTrigger,
 } from "../ui/alert-dialog";
 import { truncateWithDots } from "./helpers";
+import { deleteCourseById } from "@/app/actions";
 
 interface ICourse {
   id: number;
@@ -66,8 +66,11 @@ export default function CourseDataTable({ initialData }: CourseDataTableProps) {
 
   const deleteCourse = async (id: number) => {
     setIsLoading(true);
-    const supabase = createClient();
-    await supabase.from("courses").delete().eq("id", id);
+    const error = await deleteCourseById(id);
+    if (error) {
+      setIsLoading(false);
+      return;
+    }
     setData(data.filter((course) => course.id !== id));
     setIsLoading(false);
   };
@@ -269,9 +272,9 @@ export default function CourseDataTable({ initialData }: CourseDataTableProps) {
                       {header.isPlaceholder
                         ? null
                         : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
+                            header.column.columnDef.header,
+                            header.getContext(),
+                          )}
                     </TableHead>
                   );
                 })}

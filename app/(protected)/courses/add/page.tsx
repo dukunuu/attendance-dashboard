@@ -166,7 +166,7 @@ export default function AddCoursePage() {
           isEditable
           setEvents={handleEventChange}
         >
-          <div className="h-dvh p-14 flex flex-col">
+          <div className="h-dvh flex flex-col">
             <div className="flex px-6 justify-evenly items-center gap-2 mb-6">
               <CalendarPrevTrigger>
                 <ChevronLeft size={20} />
@@ -179,7 +179,7 @@ export default function AddCoursePage() {
               </CalendarNextTrigger>
             </div>
 
-            <div className="flex-1 px-6 overflow-hidden">
+            <div className="flex-1 overflow-hidden">
               <CalendarWeekView />
             </div>
           </div>

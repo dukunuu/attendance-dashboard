@@ -40,26 +40,9 @@ import { createClient } from "@/utils/supabase/server";
 import { Button } from "./ui/button";
 import { signOutAction } from "@/app/actions";
 import { truncateWithDots } from "./courses/helpers";
+import { notFound } from "next/navigation";
 
 // Menu items.
-const items = [
-  {
-    title: "Нүүр хуудас",
-    url: "#",
-    icon: Home,
-  },
-  {
-    title: "Хичээл",
-    url: "/courses",
-    icon: Calendar,
-    collapsed: true,
-  },
-  {
-    title: "Сурагчид",
-    url: "/students",
-    icon: UserPen,
-  },
-];
 function NavCoursesSkeleton() {
   return (
     <SidebarMenuSub>
@@ -74,6 +57,7 @@ function NavCoursesSkeleton() {
 
 async function NavCourses() {
   const getCourses = async () => {
+    "use server";
     const supabase = await createClient();
     const { data, error } = await supabase.from("courses").select("id, name");
     if (error) {
@@ -107,15 +91,47 @@ async function NavCourses() {
 }
 export async function AppSidebar() {
   const supabase = await createClient();
+  const items = [
+    {
+      title: "Нүүр",
+      url: "/",
+      icon: Home,
+    },
+    {
+      title: "Хичээл",
+      url: "/courses",
+      icon: Calendar,
+      collapsed: true,
+    },
+    {
+      title: "Оюутан",
+      url: "/students",
+      icon: UserPen,
+    },
+  ];
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const { data: profile } = await supabase
+  const { data: profile, error } = await supabase
     .from("users")
     .select()
     .eq("id", user!.id)
     .single<User>();
+
+  if (error) {
+    console.error(error);
+    notFound();
+  }
+
+  if (profile.role === "admin") {
+    items.push({
+      title: "Багш",
+      url: "/teachers",
+      icon: User2,
+    });
+  }
+
   return (
     <Sidebar collapsible="icon">
       <SidebarContent>
@@ -123,7 +139,7 @@ export async function AppSidebar() {
           <SidebarGroupLabel>Ирц бүргэлийн систем</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) =>
+              {items.map((item, index) =>
                 item.collapsed ? (
                   <Collapsible defaultOpen key={item.title}>
                     <SidebarMenuItem>

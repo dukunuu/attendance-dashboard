@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ColumnFiltersState,
   SortingState,
@@ -21,10 +21,17 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createClient } from "@/utils/supabase/client";
-import { addStudentToCourse, fetchCourseStudents } from "@/app/actions";
+import {
+  addStudentToCourse,
+  deleteCourseStudent,
+  fetchCourseStudents,
+} from "@/app/actions";
 import { tableColumns } from "./tableColumns";
 import AddStudentDialog from "../add-student-dialog";
+import { Loader2, UploadIcon } from "lucide-react";
+import CSVPreviewDialog from "../csv-preview-dialog";
+import { handleFileChange } from "../students/helpers";
+import { useToast } from "@/hooks/use-toast";
 
 export default function StudentsDataTable({
   profile,
@@ -38,23 +45,30 @@ export default function StudentsDataTable({
   const [globalFilter, setGlobalFilter] = useState("");
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [studentsLoading, setStudentsLoading] = useState(true);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [csvData, setCsvData] = useState<Omit<IStudent, "id" | "school_id">[]>(
+    [],
+  );
+  const [isSubmitting, setIsSubmittin] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
-  useEffect(() => {
-    fetchCourseStudents(profile.school_id, courseId).then((students) => {
-      setData(students);
-    });
-  }, []);
-
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string) => {
     setIsLoading(true);
-    const supabase = createClient();
-    await supabase
-      .from("course_students")
-      .delete()
-      .eq("student_id", id)
-      .eq("course_id", Number.parseInt(courseId));
+    const error = await deleteCourseStudent({
+      p_student_code: id,
+      p_course_id: Number.parseInt(courseId),
+    });
     setIsLoading(false);
-    setData(data.filter((student) => student.id !== id));
+    if (error) {
+      toast({
+        title: "Алдаа",
+        description: "Устгахад алдаа гарлаа: " + error.message,
+        variant: "destructive",
+      });
+    }
+    setData(data.filter((student) => student.student_code !== id));
   };
 
   const columns = tableColumns(isLoading, handleDelete);
@@ -76,21 +90,98 @@ export default function StudentsDataTable({
     },
   });
 
-  const addStudents = async (students: IStudent[]) => {
-    setData([...data, ...students]);
-    await addStudentToCourse(Number.parseInt(courseId), students);
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const csvStudents = await handleFileChange(event);
+    if (csvStudents) {
+      setIsPreviewOpen(true);
+      setCsvData(csvStudents);
+      return;
+    }
+    toast({
+      title: "Error",
+      description: "Invalid CSV file.",
+    });
   };
+
+  const handleUpload = async () => {
+    setIsSubmittin(true);
+    await addStudents(csvData as IStudent[]);
+    setCsvData([]);
+    setIsPreviewOpen(false);
+    setIsSubmittin(false);
+  };
+
+  const addStudents = async (students: IStudent[]) => {
+    const error = await addStudentToCourse(
+      Number.parseInt(courseId),
+      students,
+      profile.school_id,
+    );
+    if (error)
+      toast({
+        variant: "destructive",
+        title: "Алдаа гарлаа",
+        description: error.message,
+      });
+    setData((prev) => {
+      const prevSet = new Set(prev.map((el) => el.student_code));
+      const newStudents = students.filter(
+        (el) => !prevSet.has(el.student_code),
+      );
+      return [...prev, ...newStudents];
+    });
+    toast({
+      title: "Success",
+      description: "Сурагчдыг амжилттай нэмлээ.",
+    });
+  };
+
+  useEffect(() => {
+    setStudentsLoading(true);
+    fetchCourseStudents(profile.school_id, courseId).then((students) => {
+      setData(students);
+      setStudentsLoading(false);
+    });
+  }, []);
 
   return (
     <div className="w-full">
-      <div className="flex items-center justify-between py-4">
+      <div className="flex flex-col md:flex-row md:items-center gap-y-2 justify-between py-4">
         <Input
-          placeholder="Filter by student code..."
+          placeholder="Сурагч хайх..."
           value={globalFilter ?? ""}
           onChange={(event) => setGlobalFilter(event.target.value)}
           className="max-w-sm"
         />
         <div className="flex space-x-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (inputRef.current) {
+                inputRef.current.click();
+              }
+            }}
+          >
+            <UploadIcon className="h-4 w-4 mr-2" />
+            CSV оруулах
+          </Button>
+          <CSVPreviewDialog
+            isPreviewOpen={isPreviewOpen}
+            setIsPreviewOpen={setIsPreviewOpen}
+            csvData={csvData}
+            setCsvData={setCsvData}
+            isSubmitting={isSubmitting}
+            handleUpload={handleUpload}
+          />
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".csv"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
           <AddStudentDialog
             schoolId={profile.school_id}
             courseId={Number.parseInt(courseId)}
@@ -110,9 +201,9 @@ export default function StudentsDataTable({
                       {header.isPlaceholder
                         ? null
                         : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
+                            header.column.columnDef.header,
+                            header.getContext(),
+                          )}
                     </TableHead>
                   );
                 })}
@@ -140,9 +231,15 @@ export default function StudentsDataTable({
               <TableRow className="w-full">
                 <TableCell
                   colSpan={columns.length}
-                  className="h-24 text-center w-full"
+                  className="h-24 text-center  w-full"
                 >
-                  No results.
+                  {studentsLoading ? (
+                    <div className="w-full h-full flex justify-center items-center">
+                      <Loader2 className="h-10 w-10 animate-spin" />
+                    </div>
+                  ) : (
+                    "Сурагч олдсонгүй"
+                  )}
                 </TableCell>
               </TableRow>
             )}
@@ -157,7 +254,7 @@ export default function StudentsDataTable({
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
           >
-            Previous
+            Өмнөх
           </Button>
           <Button
             variant="outline"
@@ -165,7 +262,7 @@ export default function StudentsDataTable({
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
           >
-            Next
+            Дараах
           </Button>
         </div>
       </div>

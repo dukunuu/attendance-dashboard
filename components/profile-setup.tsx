@@ -103,6 +103,7 @@ const useProfileSetup = (userId: string) => {
       await new Promise((resolve) => setTimeout(resolve, 1000));
       const code = Math.floor(100000 + Math.random() * 900000).toString();
       setVerificationCode(code);
+      setPhoneVerified(false);
       toast({
         title: "Баталгаажуулах код илгээгдлээ",
         description: `Таны утас руу илгээсэн код: ${code}`,
@@ -141,7 +142,7 @@ const useProfileSetup = (userId: string) => {
         });
         return;
       }
-      await supabase
+      const { error } = await supabase
         .from("users")
         .update({
           first_name: formData.first_name,
@@ -151,6 +152,14 @@ const useProfileSetup = (userId: string) => {
           school_id: formData.school_id,
         })
         .eq("id", userId);
+      if (error) {
+        toast({
+          title: "Алдаа гарлаа",
+          description: "Профайл үүсгэхэд алдаа гарлаа: " + error.message,
+          variant: "destructive",
+        });
+        return;
+      }
       toast({
         title: "Амжилттай",
         description: "Таны профайл амжилттай үүслээ.",
@@ -159,7 +168,7 @@ const useProfileSetup = (userId: string) => {
     } catch (error) {
       toast({
         title: "Алдаа гарлаа",
-        description: "Профайл үүсгэхэд алдаа гарлаа. Дахин оролдоно уу.",
+        description: "Профайл үүсгэхэд алдаа гарлаа: " + error,
         variant: "destructive",
       });
     } finally {
@@ -231,12 +240,12 @@ export default function EnhancedProfileSetup({ userId }: { userId: string }) {
   }, []);
 
   return (
-    <Card className="w-full max-w-lg mx-auto">
+    <Card className="w-full flex flex-col relative max-w-lg h-full overflow-y-auto">
       <CardHeader>
         <CardTitle>Профайл үүсгэх</CardTitle>
         <CardDescription>{steps[page - 1].description}</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="h-full flex flex-col justify-center">
         <AnimatePresence mode="wait">
           <motion.div
             key={page}
@@ -244,9 +253,10 @@ export default function EnhancedProfileSetup({ userId }: { userId: string }) {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.2 }}
+            className="w-full h-full flex"
           >
             {page === 1 && (
-              <div className="space-y-4">
+              <div className="space-y-4 w-full flex flex-col justify-center">
                 <div className="space-y-2">
                   <Label htmlFor="first_name">Нэр</Label>
                   <Input
@@ -281,7 +291,7 @@ export default function EnhancedProfileSetup({ userId }: { userId: string }) {
               </div>
             )}
             {page === 2 && (
-              <div className="space-y-4">
+              <div className="space-y-4 flex w-full justify-center flex-col">
                 <div className="space-y-2">
                   <Label htmlFor="phone_number">Утасны дугаар</Label>
                   <Input
@@ -297,14 +307,11 @@ export default function EnhancedProfileSetup({ userId }: { userId: string }) {
                     </p>
                   )}
                 </div>
-                <Button
-                  onClick={verifyPhoneNumber}
-                  disabled={sendingCode || phoneVerified}
-                >
+                <Button onClick={verifyPhoneNumber} disabled={sendingCode}>
                   {sendingCode ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : null}
-                  {phoneVerified ? "Баталгаажсан" : "Баталгаажуулах"}
+                  {phoneVerified ? "Код дахин илгээх" : "Баталгаажуулах"}
                 </Button>
                 {verificationCode && (
                   <div className="space-y-2">
@@ -325,7 +332,7 @@ export default function EnhancedProfileSetup({ userId }: { userId: string }) {
               </div>
             )}
             {page === 3 && (
-              <div className="space-y-4">
+              <div className="space-y-4 flex w-full justify-center flex-col">
                 <div className="space-y-2">
                   <Label htmlFor="school">Сургууль</Label>
                   <Select
@@ -365,7 +372,7 @@ export default function EnhancedProfileSetup({ userId }: { userId: string }) {
           {page === 3 ? "Дуусгах" : "Дараах"}
         </Button>
       </CardFooter>
-      <div className="w-full bg-gray-200 h-2 mt-4">
+      <div className="w-full sticky bottom-0 bg-gray-200 h-2 mt-4">
         <div
           className="bg-primary h-2 transition-all duration-300 ease-in-out"
           style={{ width: `${(page / steps.length) * 100}%` }}
